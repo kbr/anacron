@@ -127,28 +127,30 @@ def cron_function():
 class TestDecorators(unittest.TestCase):
 
     def setUp(self):
-        self.interface = sql_interface.SQLiteInterface(db_name=TEST_DB_NAME)
+        self.orig_interface = decorators.interface
+        decorators.interface = sql_interface.SQLiteInterface(db_name=TEST_DB_NAME)
 
     def tearDown(self):
-        pathlib.Path(self.interface.db_name).unlink()
+        pathlib.Path(decorators.interface.db_name).unlink()
+        decorators.interface = self.orig_interface
 
     def test_cron_no_arguments_inactive(self):
         # the database should have no entry with the default crontab
         # if configuration is not active
-        wrapper = decorators.cron(interface=self.interface)
+        wrapper = decorators.cron()
         func = wrapper(cron_function)
         assert func == cron_function
-        entries = list(self.interface.find_callables(cron_function))
+        entries = list(decorators.interface.find_callables(cron_function))
         assert len(entries) == 0
 
     def test_cron_no_arguments_active(self):
         # the database should have one entry with the default crontab
         # if configuration is active
         configuration.configuration.is_active = True
-        wrapper = decorators.cron(interface=self.interface)
+        wrapper = decorators.cron()
         func = wrapper(cron_function)
         assert func == cron_function
-        entries = list(self.interface.find_callables(cron_function))
+        entries = list(decorators.interface.find_callables(cron_function))
         assert len(entries) == 1
         entry = entries[0]
         assert entry["crontab"] == decorators.DEFAULT_CRONTAB
@@ -160,18 +162,18 @@ class TestDecorators(unittest.TestCase):
         # the db then should hold just a single entry deleting
         # the other ones.
         # should not happen:
-        self.interface.register_callable(cron_function, crontab=decorators.DEFAULT_CRONTAB)
-        self.interface.register_callable(cron_function, crontab=decorators.DEFAULT_CRONTAB)
-        entries = list(self.interface.find_callables(cron_function))
+        decorators.interface.register_callable(cron_function, crontab=decorators.DEFAULT_CRONTAB)
+        decorators.interface.register_callable(cron_function, crontab=decorators.DEFAULT_CRONTAB)
+        entries = list(decorators.interface.find_callables(cron_function))
         assert len(entries) == 2
         # now add the same function with the cron decorator:
         crontab = "10 2 1 * *"
         configuration.configuration.is_active = True
-        wrapper = decorators.cron(crontab=crontab, interface=self.interface)
+        wrapper = decorators.cron(crontab=crontab)
         func = wrapper(cron_function)
         # just a single entry should no be in the database
         # (the one added by the decorator):
-        entries = list(self.interface.find_callables(cron_function))
+        entries = list(decorators.interface.find_callables(cron_function))
         assert len(entries) == 1
         entry = entries[0]
         assert entry["crontab"] == crontab
