@@ -20,6 +20,9 @@ def test_callable(*args, **kwargs):
 def test_adder(a, b):
     return a + b
 
+def test_multiply(a, b):
+    return a * b
+
 
 class TestSQLInterface(unittest.TestCase):
 
@@ -88,7 +91,24 @@ class TestSQLInterface(unittest.TestCase):
         entry = entries[0]
         assert entry["function_name"] == test_adder.__name__
 
+    def test_find_callable(self):
+        # register two callables, one with a schedule in the future
+        schedule = datetime.datetime.now() + datetime.timedelta(seconds=10)
+        self.interface.register_callable(test_adder, schedule=schedule)
+        self.interface.register_callable(test_callable)
+        # find a nonexistent callable should return an empty generator
+        entries = list(self.interface.find_callables(test_multiply))
+        assert len(entries) == 0
+        # find a callable scheduled for the future:
+        entries = list(self.interface.find_callables(test_adder))
+        assert len(entries) == 1
 
-
-
-
+    def test_find_callables(self):
+        # it is allowed to register the same callables multiple times.
+        # regardless of the schedule `find_callables()` should return
+        # all entries.
+        schedule = datetime.datetime.now() + datetime.timedelta(seconds=10)
+        self.interface.register_callable(test_adder, schedule=schedule)
+        self.interface.register_callable(test_adder)
+        entries = list(self.interface.find_callables(test_adder))
+        assert len(entries) == 2

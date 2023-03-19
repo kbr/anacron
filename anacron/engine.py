@@ -5,6 +5,7 @@ decorators and taskhandlers
 """
 
 from .configuration import configuration
+from .schedule import CronScheduler
 from .sql_interface import interface
 
 
@@ -25,6 +26,8 @@ def cron(crontab=DEFAULT_CRONTAB):
     """
     def inner(func):
         if configuration.is_active:
-#             interface.register_callable(func, )
-            pass
+            cs = CronScheduler(crontab=crontab)
+            schedule = cs.get_next_schedule()
+            interface.register_callable(func, schedule=schedule, crontab=crontab)
+        return func
 

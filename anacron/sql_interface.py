@@ -33,7 +33,11 @@ INSERT INTO {DB_TABLE_NAME_TASK} VALUES
 )
 """
 COLUMN_SEQUENCE = "rowid,schedule,crontab,function_module,function_name,function_arguments"
-CMD_GET_CALLABLES = f"""
+CMD_GET_CALLABLES_BY_NAME = f"""
+SELECT {COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_TASK}
+    WHERE function_module == ? AND function_name == ?
+"""
+CMD_GET_CALLABLES_ON_DUE = f"""
 SELECT {COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_TASK} WHERE schedule <= ?
 """
 CMD_DELETE_CALLABLE = f"DELETE FROM {DB_TABLE_NAME_TASK} WHERE rowid == ?"
@@ -41,17 +45,48 @@ SQLITE_STRFTIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 
 class SQLiteInterface:
+    """
+    SQLite interface for application specific operations.
+    """
 
     def __init__(self, db_name=":memory:"):
         self.db_name = db_name
         self._execute(CMD_CREATE_TABLE)
 
     def _execute(self, cmd, parameters=()):
+        """run a command with parameters."""
         con = sqlite3.connect(self.db_name)
         with con:
             return con.execute(cmd, parameters)
 
+    @staticmethod
+    def _fetch_all_callable_entries(cursor):
+        """
+        Internal generator to iterate over a selection of entries and unpack
+        the columns to a dictionary with the following key-value pairs:
+
+            {
+                "rowid": integer,
+                "schedule": datetime,
+                "crontab": string,
+                "function_module": string,
+                "function_name": string,
+                "args": tuple(of original datatypes),
+                "kwargs": dict(of original datatypes),
+            }
+
+        """
+        for entry in cursor.fetchall():
+            args, kwargs = pickle.loads(entry[-1])
+            data = {key: entry[i] for i, key in enumerate(COLUMN_SEQUENCE.split(",")[:-1])}
+            data["args"] = args
+            data["kwargs"] = kwargs
+            yield data
+
     def register_callable(self, func, schedule=None, crontab="", args=(), kwargs=None):
+        """
+        Store a callable in the database.
+        """
         if not schedule:
             schedule = datetime.datetime.now()
         if not kwargs:
@@ -67,17 +102,32 @@ class SQLiteInterface:
         self._execute(CMD_STORE_CALLABLE, data)
 
     def get_callables(self, schedule=None):
+        """
+        Generator function to return all callables that according to
+        their schedules are on due. Callables are represented by a
+        dictionary as returned from `_fetch_all_callable_entries()`
+        """
         if not schedule:
             schedule = datetime.datetime.now()
-        cursor = self._execute(CMD_GET_CALLABLES, [schedule])
-        for entry in cursor.fetchall():
-            args, kwargs = pickle.loads(entry[-1])
-            data = {key: entry[i] for i, key in enumerate(COLUMN_SEQUENCE.split(",")[:-1])}
-            data["args"] = args
-            data["kwargs"] = kwargs
-            yield data
+        cursor = self._execute(CMD_GET_CALLABLES_ON_DUE, [schedule])
+        yield from self._fetch_all_callable_entries(cursor)
+
+    def find_callables(self, func):
+        """
+        Generator function to return all callables matching the
+        function-signature. Callables are represented by a dictionary as
+        returned from `_fetch_all_callable_entries()`
+        """
+        parameters = func.__module__, func.__name__
+        cursor = self._execute(CMD_GET_CALLABLES_BY_NAME, parameters)
+        yield from self._fetch_all_callable_entries(cursor)
 
     def delete_callable(self, entry):
+        """
+        Delete the entry in the callable-table. Entry should be a
+        dictionary as returned from `get_callables()`. The row to delete
+        gets identified by the `rowid`.
+        """
         self._execute(CMD_DELETE_CALLABLE, [entry["rowid"]])
 
 
