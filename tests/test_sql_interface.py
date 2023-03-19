@@ -8,6 +8,9 @@ import datetime
 import pathlib
 import time
 import unittest
+
+from anacron import configuration
+from anacron import decorators
 from anacron import sql_interface
 
 
@@ -112,3 +115,39 @@ class TestSQLInterface(unittest.TestCase):
         self.interface.register_callable(test_adder)
         entries = list(self.interface.find_callables(test_adder))
         assert len(entries) == 2
+
+
+# decorator testing includes database access.
+# for easier testing decorator tests are included here.
+
+def cron_function():
+    pass
+
+
+class TestDecorators(unittest.TestCase):
+
+    def setUp(self):
+        self.interface = sql_interface.SQLiteInterface(db_name=TEST_DB_NAME)
+
+    def tearDown(self):
+        pathlib.Path(self.interface.db_name).unlink()
+
+    def test_cron_no_arguments_inactive(self):
+        # the database should have no entry with the default crontab
+        # if configuration is not active
+        wrapper = decorators.cron(interface=self.interface)
+        func = wrapper(cron_function)
+        assert func == cron_function
+        entries = list(self.interface.find_callables(cron_function))
+        assert len(entries) == 0
+
+    def test_cron_no_arguments_active(self):
+        # the database should have one entry with the default crontab
+        # if configuration is active
+        configuration.configuration.is_active = True
+        wrapper = decorators.cron(interface=self.interface)
+        func = wrapper(cron_function)
+        assert func == cron_function
+        entries = list(self.interface.find_callables(cron_function))
+        assert len(entries) == 1
+        configuration.configuration.is_active = False
