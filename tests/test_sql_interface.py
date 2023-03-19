@@ -150,4 +150,29 @@ class TestDecorators(unittest.TestCase):
         assert func == cron_function
         entries = list(self.interface.find_callables(cron_function))
         assert len(entries) == 1
+        entry = entries[0]
+        assert entry["crontab"] == decorators.DEFAULT_CRONTAB
+        configuration.configuration.is_active = False
+
+    def test_suppress_identic_cronjobs(self):
+        # register multiple cronjobs of a single callable.
+        # then add the cronjob again by means of the decorator.
+        # the db then should hold just a single entry deleting
+        # the other ones.
+        # should not happen:
+        self.interface.register_callable(cron_function, crontab=decorators.DEFAULT_CRONTAB)
+        self.interface.register_callable(cron_function, crontab=decorators.DEFAULT_CRONTAB)
+        entries = list(self.interface.find_callables(cron_function))
+        assert len(entries) == 2
+        # now add the same function with the cron decorator:
+        crontab = "10 2 1 * *"
+        configuration.configuration.is_active = True
+        wrapper = decorators.cron(crontab=crontab, interface=self.interface)
+        func = wrapper(cron_function)
+        # just a single entry should no be in the database
+        # (the one added by the decorator):
+        entries = list(self.interface.find_callables(cron_function))
+        assert len(entries) == 1
+        entry = entries[0]
+        assert entry["crontab"] == crontab
         configuration.configuration.is_active = False
