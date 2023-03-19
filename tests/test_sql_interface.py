@@ -1,7 +1,7 @@
 """
-tests.py
+test_sql_interface.py
 
-testcode for anacron
+testcode for sql-actions
 """
 
 import datetime
