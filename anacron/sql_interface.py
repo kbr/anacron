@@ -12,7 +12,7 @@ from .configuration import configuration
 
 
 DB_TABLE_NAME_TASK = "task"
-CMD_CREATE_TABLE = f"""
+CMD_CREATE_TASK_TABLE = f"""
 CREATE TABLE IF NOT EXISTS {DB_TABLE_NAME_TASK}
 (
     schedule datetime PRIMARY KEY,
@@ -51,7 +51,7 @@ class SQLiteInterface:
 
     def __init__(self, db_name=":memory:"):
         self.db_name = db_name
-        self._execute(CMD_CREATE_TABLE)
+        self._execute(CMD_CREATE_TASK_TABLE)
 
     def _execute(self, cmd, parameters=()):
         """run a command with parameters."""
