@@ -1,6 +1,7 @@
 """
 decorators.py
 """
+import functools
 
 from .configuration import configuration
 from .schedule import CronScheduler
@@ -11,9 +12,10 @@ from .sql_interface import interface
 DEFAULT_CRONTAB = "* * * * *"
 
 
-def cron(crontab=DEFAULT_CRONTAB, interface=interface):
+def cron(crontab=DEFAULT_CRONTAB):
     """
     Decorator function for a cronjob.
+
     Functions running cronjobs should not get called from the main
     program and therefore don't get attributes. Usage for a cronjob to
     run every hour:
@@ -22,24 +24,38 @@ def cron(crontab=DEFAULT_CRONTAB, interface=interface):
         def some_callable():
             # do periodic stuff here ...
 
-    The `interface` argument is for testing and should not get
-    used in real applications.
     """
     def wrapper(func):
         if configuration.is_active:
             cs = CronScheduler(crontab=crontab)
             schedule = cs.get_next_schedule()
-            # convert to a list because parts of the selection provided
-            # by the generator may get deleted during iteration.
-            # (at time of writing it is unknown whether there may bei side-effects)
-            for entry in list(interface.find_callables(func)):
+            for entry in interface.find_callables(func):
                 # there should be just a single entry.
                 # however iterate over all entries and
                 # test for a non-empty crontab-string.
                 if entry["crontab"]:
-                    # delete existing cronjob and store a new one.
+                    # delete existing cronjob(s) of the same callable
                     interface.delete_callable(entry)
-            interface.register_callable(func, schedule=schedule, crontab=crontab)
+            interface.register_callable(
+                func, schedule=schedule, crontab=crontab
+            )
         return func
     return wrapper
 
+
+def delegate(func):
+    """
+    Decorator function for a delayed task.
+
+    The decorated function will return immediately without running
+    the function. The function will get executed later.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        interface.register_callable(func, args=args, kwargs=kwargs)
+        return None  # or uuid later?
+
+    if not configuration.is_active:
+        return func
+    return wrapper
