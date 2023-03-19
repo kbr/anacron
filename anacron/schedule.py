@@ -5,7 +5,7 @@ from datetime import timedelta
 import re
 
 
-class CronScheduler(object):
+class CronScheduler:
     """
     Schedules a cron task.
 
