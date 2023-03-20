@@ -124,7 +124,7 @@ def cron_function():
     pass
 
 
-class TestDecorators(unittest.TestCase):
+class TestCronDecorator(unittest.TestCase):
 
     def setUp(self):
         self.orig_interface = decorators.interface
@@ -178,3 +178,37 @@ class TestDecorators(unittest.TestCase):
         entry = entries[0]
         assert entry["crontab"] == crontab
         configuration.configuration.is_active = False
+
+
+def delegate_function():
+    pass
+
+
+class TestDelegateDecorator(unittest.TestCase):
+
+    def setUp(self):
+        self.orig_interface = decorators.interface
+        decorators.interface = sql_interface.SQLiteInterface(db_name=TEST_DB_NAME)
+
+    def tearDown(self):
+        pathlib.Path(decorators.interface.db_name).unlink()
+        decorators.interface = self.orig_interface
+
+    def test_inactive(self):
+        wrapper = decorators.delegate(delegate_function)
+        assert wrapper is delegate_function
+        entries = list(decorators.interface.find_callables(delegate_function))
+        assert len(entries) == 0
+
+    def test_active(self):
+        configuration.configuration.is_active = True
+        wrapper = decorators.delegate(delegate_function)
+        assert wrapper is not delegate_function
+        entries = list(decorators.interface.find_callables(delegate_function))
+        assert len(entries) == 0
+        # call to wrapper store task in db:
+        wrapper()
+        entries = list(decorators.interface.find_callables(delegate_function))
+        assert len(entries) == 1
+        configuration.configuration.is_active = False
+
