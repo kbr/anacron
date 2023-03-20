@@ -14,6 +14,7 @@ else:
     DJANGO_IS_INSTALLED = True
 
 DB_FILE_NAME = "anacron.db"
+SEMAPHORE_FILE_NAME = "anacron.flag"
 
 
 class Configuration:
@@ -31,6 +32,10 @@ class Configuration:
     @property
     def db_file(self):
         return self.db_path / self.db_filename
+
+    @property
+    def semaphore_file(self):
+        return self.db_path / SEMAPHORE_FILE_NAME
 
 
 configuration = Configuration()
