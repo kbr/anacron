@@ -34,7 +34,7 @@ class Configuration:
         return self.db_path / self.db_filename
 
     @property
-    def semaphore_file(self):
+    def semaphore(self):
         return self.db_path / SEMAPHORE_FILE_NAME
 
 
