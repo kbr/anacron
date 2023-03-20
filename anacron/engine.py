@@ -32,8 +32,8 @@ def start():
     """
     Starts the anacron monitor in case anacron is active and no other
     worker is already running. Otherwise do nothing. In case of success
-    returns the terminator (the stop function with arguments provided by
-    partial), otherwise returns None.
+    return the terminator (the stop function with arguments provided by
+    partial) otherwise return None.
     """
     if configuration.is_active:
         try:
