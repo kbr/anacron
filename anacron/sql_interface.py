@@ -32,14 +32,15 @@ INSERT INTO {DB_TABLE_NAME_TASK} VALUES
     :function_arguments
 )
 """
-COLUMN_SEQUENCE = "rowid,schedule,crontab,function_module,function_name,function_arguments"
-CMD_GET_CALLABLES_BY_NAME = f"""
-SELECT {COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_TASK}
-    WHERE function_module == ? AND function_name == ?
-"""
-CMD_GET_CALLABLES_ON_DUE = f"""
-SELECT {COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_TASK} WHERE schedule <= ?
-"""
+COLUMN_SEQUENCE = "\
+    rowid,schedule,crontab,function_module,function_name,function_arguments"
+CMD_GET_CALLABLES_BY_NAME = f"""\
+    SELECT {COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_TASK}
+    WHERE function_module == ? AND function_name == ?"""
+CMD_GET_CALLABLES_ON_DUE = f"""\
+    SELECT {COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_TASK} WHERE schedule <= ?"""
+CMD_UPDATE_SCHEDULE = f"\
+    UPDATE {DB_TABLE_NAME_TASK} SET schedule = ? WHERE rowid == ?"
 CMD_DELETE_CALLABLE = f"DELETE FROM {DB_TABLE_NAME_TASK} WHERE rowid == ?"
 SQLITE_STRFTIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
@@ -77,8 +78,14 @@ class SQLiteInterface:
 
         """
         for entry in cursor.fetchall():
+            # entry is an ordered list of columns as defined in `CREATE TABLE`
+            # the blob column with the pickled arguments is the last column
             args, kwargs = pickle.loads(entry[-1])
-            data = {key: entry[i] for i, key in enumerate(COLUMN_SEQUENCE.split(",")[:-1])}
+            data = {
+                key: entry[i] for i, key in enumerate(
+                    COLUMN_SEQUENCE.strip().split(",")[:-1]
+                )
+            }
             data["args"] = args
             data["kwargs"] = kwargs
             yield data
@@ -129,6 +136,13 @@ class SQLiteInterface:
         gets identified by the `rowid`.
         """
         self._execute(CMD_DELETE_CALLABLE, [entry["rowid"]])
+
+    def update_schedule(self, rowid, schedule):
+        """
+        Update the `schedule` of the table entry with the given `rowid`.
+        """
+        parameters = schedule, rowid
+        self._execute(CMD_UPDATE_SCHEDULE, parameters)
 
 
 interface = SQLiteInterface(db_name=configuration.db_file)
