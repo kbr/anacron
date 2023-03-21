@@ -63,16 +63,21 @@ class TestSQLInterface(unittest.TestCase):
         assert obj["args"] == args
         assert obj["kwargs"] == kwargs
 
-    def test_schedules(self):
+    def test_schedules_get_one_of_two(self):
         # register two callables, one with a schedule in the future
-        schedule = datetime.datetime.now() + datetime.timedelta(milliseconds=1)
+        schedule = datetime.datetime.now() + datetime.timedelta(seconds=10)
         self.interface.register_callable(test_adder, schedule=schedule)
         self.interface.register_callable(test_callable)
         # test to get one callable at due
         entries = list(self.interface.get_callables())
         assert len(entries) == 1
-        # wait and test to get two callbles on due
-        time.sleep(0.001)
+
+    def test_schedules_get_two_of_two(self):
+        # register two callables, both scheduled in the present or past
+        schedule = datetime.datetime.now() - datetime.timedelta(seconds=10)
+        self.interface.register_callable(test_adder, schedule=schedule)
+        self.interface.register_callable(test_callable)
+        # test to get one callable at due
         entries = list(self.interface.get_callables())
         assert len(entries) == 2
 
@@ -115,6 +120,20 @@ class TestSQLInterface(unittest.TestCase):
         self.interface.register_callable(test_adder)
         entries = list(self.interface.find_callables(test_adder))
         assert len(entries) == 2
+
+    def test_update_schedule(self):
+        # entries like cronjobs should not get deleted from the tasks
+        # but updated with the next schedule
+        schedule = datetime.datetime.now()
+        next_schedule = schedule + datetime.timedelta(seconds=10)
+        self.interface.register_callable(test_adder, schedule=schedule)
+        entry = next(self.interface.find_callables(test_adder))
+        assert entry["schedule"] == schedule
+        self.interface.update_schedule(entry["rowid"], next_schedule)
+        entry = next(self.interface.find_callables(test_adder))
+        assert entry["schedule"] == next_schedule
+
+
 
 
 # decorator testing includes database access.

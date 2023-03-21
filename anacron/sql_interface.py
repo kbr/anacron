@@ -86,6 +86,11 @@ class SQLiteInterface:
                     COLUMN_SEQUENCE.strip().split(",")[:-1]
                 )
             }
+            # convert sqlite3 datetime to python datetime datatype:
+            # (for testing: this needs more than 1 millisecond)
+            data["schedule"] = datetime.datetime.strptime(
+                data["schedule"], SQLITE_STRFTIME_FORMAT
+            )
             data["args"] = args
             data["kwargs"] = kwargs
             yield data
