@@ -64,7 +64,7 @@ class TestWorker(unittest.TestCase):
         self.cmd = [sys.executable, worker.__file__]
         self.cwd = configuration.configuration.cwd
 
-    def test_start_and_stop_worker(self):
+    def test_start_and_stop_workerprocess(self):
         process = subprocess.Popen(self.cmd, cwd=self.cwd)
         assert process.poll() is None  # subprocess runs
         process.terminate()
