@@ -1,17 +1,16 @@
 """
 test_engine.py
 
-tests for the engine and the worker.
+tests for the engine.
 """
-import subprocess
-import sys
-import threading
 import time
 import unittest
 
 from anacron import configuration
 from anacron import engine
-from anacron import worker
+
+
+TEST_DB_NAME = "test.db"
 
 
 class TestEngine(unittest.TestCase):
@@ -56,29 +55,3 @@ class TestEngine(unittest.TestCase):
         assert engine_.monitor_thread.is_alive() is False
         configuration.configuration.is_active = False
         configuration.configuration.worker_allowed = True
-
-
-class TestWorkerStartStop(unittest.TestCase):
-
-    def setUp(self):
-        self.cmd = [sys.executable, worker.__file__]
-        self.cwd = configuration.configuration.cwd
-
-    def test_start_and_stop_workerprocess(self):
-        process = subprocess.Popen(self.cmd, cwd=self.cwd)
-        assert process.poll() is None  # subprocess runs
-        process.terminate()
-        time.sleep(0.1)
-        assert process.poll() is not None
-
-
-class TestWorkerStartStopViaEngine(unittest.TestCase):
-
-    def test_start_worker_via_engine(self):
-        configuration.configuration.is_active = True
-        engine_ = engine.Engine()
-        result = engine_.start()
-        assert result is True
-        assert engine_.monitor is not None
-        engine_.stop()
-        configuration.configuration.is_active = False

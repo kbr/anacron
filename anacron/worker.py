@@ -78,6 +78,8 @@ class Worker:
         module = importlib.import_module(task["function_module"])
         function = getattr(module, task["function_name"])
         try:
+            args = task["args"]
+            kwargs = task["kwargs"]
             self.result = function(*args, **kwargs)
         except Exception as err:
             self.error_message = err.__repr__()
