@@ -58,7 +58,7 @@ class TestEngine(unittest.TestCase):
         configuration.configuration.worker_allowed = True
 
 
-class TestWorker(unittest.TestCase):
+class TestWorkerStartStop(unittest.TestCase):
 
     def setUp(self):
         self.cmd = [sys.executable, worker.__file__]
@@ -72,7 +72,7 @@ class TestWorker(unittest.TestCase):
         assert process.poll() is not None
 
 
-class TestWorkerStartViaEngine(unittest.TestCase):
+class TestWorkerStartStopViaEngine(unittest.TestCase):
 
     def test_start_worker_via_engine(self):
         configuration.configuration.is_active = True
