@@ -39,12 +39,12 @@ class TestSQLInterface(unittest.TestCase):
         entries = self.interface.get_callables()
         self.assertFalse(list(entries))
         self.interface.register_callable(test_callable)
-        entries = list(self.interface.get_callables())
+        entries = self.interface.get_callables()
         assert len(entries) == 1
 
     def test_entry_signature(self):
         self.interface.register_callable(test_callable)
-        entries = list(self.interface.get_callables())
+        entries = self.interface.get_callables()
         obj = entries[0]
         assert type(obj) is dict
         assert obj["function_module"] == test_callable.__module__
@@ -69,7 +69,7 @@ class TestSQLInterface(unittest.TestCase):
         self.interface.register_callable(test_adder, schedule=schedule)
         self.interface.register_callable(test_callable)
         # test to get one callable at due
-        entries = list(self.interface.get_callables())
+        entries = self.interface.get_callables()
         assert len(entries) == 1
 
     def test_schedules_get_two_of_two(self):
@@ -78,7 +78,7 @@ class TestSQLInterface(unittest.TestCase):
         self.interface.register_callable(test_adder, schedule=schedule)
         self.interface.register_callable(test_callable)
         # test to get one callable at due
-        entries = list(self.interface.get_callables())
+        entries = self.interface.get_callables()
         assert len(entries) == 2
 
     def test_delete(self):
@@ -88,13 +88,13 @@ class TestSQLInterface(unittest.TestCase):
         self.interface.register_callable(test_callable)
         # test to get the `test_callable` function on due
         # and delete it from the db
-        entry = list(self.interface.get_callables())[0]
+        entry = self.interface.get_callables()[0]
         assert entry["function_name"] == test_callable.__name__
         self.interface.delete_callable(entry)
         # wait and test to get the remaining single entry
         # and check whether it is the `test_adder` function
         time.sleep(0.001)
-        entries = list(self.interface.get_callables())
+        entries = self.interface.get_callables()
         assert len(entries) == 1
         entry = entries[0]
         assert entry["function_name"] == test_adder.__name__
@@ -105,10 +105,10 @@ class TestSQLInterface(unittest.TestCase):
         self.interface.register_callable(test_adder, schedule=schedule)
         self.interface.register_callable(test_callable)
         # find a nonexistent callable should return an empty generator
-        entries = list(self.interface.find_callables(test_multiply))
+        entries = self.interface.find_callables(test_multiply)
         assert len(entries) == 0
         # find a callable scheduled for the future:
-        entries = list(self.interface.find_callables(test_adder))
+        entries = self.interface.find_callables(test_adder)
         assert len(entries) == 1
 
     def test_find_callables(self):
@@ -127,10 +127,10 @@ class TestSQLInterface(unittest.TestCase):
         schedule = datetime.datetime.now()
         next_schedule = schedule + datetime.timedelta(seconds=10)
         self.interface.register_callable(test_adder, schedule=schedule)
-        entry = next(self.interface.find_callables(test_adder))
+        entry = self.interface.find_callables(test_adder)[0]
         assert entry["schedule"] == schedule
         self.interface.update_schedule(entry["rowid"], next_schedule)
-        entry = next(self.interface.find_callables(test_adder))
+        entry = self.interface.find_callables(test_adder)[0]
         assert entry["schedule"] == next_schedule
 
 
