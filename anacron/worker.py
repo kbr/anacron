@@ -40,19 +40,26 @@ class Worker:
         them as long as callables are available. Otherwise keep idle.
         """
         while self.active:
-            # convert generator to list to test for empty tasks
-            tasks = list(interface.get_callables())
-            if tasks:
-                for task in tasks:
-                    self.handle_task(task)
-                    self.postprocess_task(task)
-                    # clean up after processing
-                    self.error_message = None
-                    self.result = None
-            else:
+            if not self.handle_tasks():
                 time.sleep(configuration.worker_idle_time)
 
-    def handle_task(self, task):
+    def handle_tasks(self):
+        """
+        Checks for tasks and process them. If there are no tasks to
+        handle the method returns False indication that the main loop
+        can switch to idle state. If  tasks have been handled, the
+        method returns True to indicate that meanwhile more tasks may be
+        waiting.
+        """
+        tasks = interface.get_callables()
+        if tasks:
+            for task in tasks:
+                self.process_task(task)
+                self.postprocess_task(task)
+            return True
+        return False
+
+    def process_task(self, task):
         """
         Handle the given task. The task is a dictionary as returned from
         SQLInterface._fetch_all_callable_entries(cursor):
@@ -81,8 +88,9 @@ class Worker:
         error-message.
         """
         pass
-
-
+        # clean up after processing
+        self.error_message = None
+        self.result = None
 
 
 def start_worker():
