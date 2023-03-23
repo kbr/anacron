@@ -1,51 +1,55 @@
 """
 engine.py
 
-Implementation of the anacron starter, worker and monitor.
+Implementation of the anacron engine and the worker monitor.
 """
-import functools
+import pathlib
 import signal
 import subprocess
 import sys
 import threading
 
-from anacron import worker
 from .configuration import configuration
 
 
-class Monitor:
-    """
-    Manages the worker: start, restart and stop.
-    The Monitor runs in a separate thread.
-    """
-    def __init__(self):
-        self.process = None
+WORKER_MODULE_NAME = "worker.py"
 
-    def run(self, exit_event):
-        """
-        Starts the monitor on calling the instance.
-        The monitor runs in a separate thread.
-        """
-        while True:
-            if self.process is None or self.process.poll() is None:
-                self.start_process()
-            if exit_event.wait(timeout=configuration.monitor_idle_time):
-                break
-        if self.process and not self.process.poll():
-            self.process.terminate()
 
-    def start_process(self):
-        """
-        Starts the worker process in a detached subprocess.
-        """
-        if configuration.worker_allowed:
-            cmd = [sys.executable, worker.__file__]
-            cwd = configuration.cwd
-            self.process = subprocess.Popen(cmd, cwd=cwd)
+def start_subprocess(database_file=None):
+    """
+    Starts the worker process in a detached subprocess.
+    An optional `database_file` will get forwarded to the worker to use
+    this instead of the configured one. This argument is for testing.
+    """
+    worker_file = pathlib.Path(__file__).parent / WORKER_MODULE_NAME
+    cmd = [sys.executable, worker_file]
+    if database_file:
+        cmd.append(database_file)
+    cwd = configuration.cwd
+    return subprocess.Popen(cmd, cwd=cwd)
+
+
+def worker_monitor(exit_event, database_file=None):
+    """
+    Monitors the subprocess and start/restart if the process is not up.
+    """
+    process = None
+    while True:
+        if process is None or process.poll() is not None:
+            process = start_subprocess(database_file)
+        if exit_event.wait(timeout=configuration.monitor_idle_time):
+            break
+    process.terminate()
 
 
 class Engine:
-
+    """
+    The Engine is the entry-point for anacron. On import an Entry
+    instance gets created and the method start is called. Depending on
+    the configuration will start the worker-monitor and the background
+    process. If the (auto-)configuration is not active, the method start
+    will just return doing nothing.
+    """
     def __init__(self):
         self.exit_event = threading.Event()
         self.monitor_thread = None
@@ -59,7 +63,7 @@ class Engine:
         ):
             signal.signal(_signal, self.stop)
 
-    def start(self):
+    def start(self, database_file=None):
         """
         Starts the monitor in case anacron is active and no other
         monitor is already running. Return True if a monitor thread has
@@ -74,9 +78,9 @@ class Engine:
                 pass
             else:
                 # start monitor thread
-                self.monitor = Monitor()
                 self.monitor_thread = threading.Thread(
-                    target=self.monitor.run, args=(self.exit_event,)
+                    target=worker_monitor,
+                    args=(self.exit_event, database_file)
                 )
                 self.monitor_thread.start()
                 return True  # monitor started
@@ -91,3 +95,7 @@ class Engine:
         # keep compatibility with Python 3.7:
         if configuration.semaphore_file.exists():
             configuration.semaphore_file.unlink()
+
+
+engine = Engine()
+engine.start()

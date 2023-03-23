@@ -15,8 +15,8 @@ else:
 
 DB_FILE_NAME = "anacron.db"
 SEMAPHORE_FILE_NAME = "anacron.flag"
-MONITOR_IDLE_TIME = 1  # seconds
-WORKER_IDLE_TIME = 1  # seconds
+MONITOR_IDLE_TIME = 1.0  # seconds
+WORKER_IDLE_TIME = 1.0  # seconds
 
 
 class Configuration:
@@ -29,7 +29,7 @@ class Configuration:
         self.db_filename = db_filename
         self.monitor_idle_time = MONITOR_IDLE_TIME
         self.worker_idle_time = WORKER_IDLE_TIME
-        self.worker_allowed = True  # can be set to False for testing
+#         self.worker_allowed = True  # can be set to False for testing
         self.is_active = False
         if DJANGO_IS_INSTALLED:
             self.is_active = not settings.DEBUG

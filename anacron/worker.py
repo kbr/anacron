@@ -8,8 +8,8 @@ import importlib
 import signal
 import time
 
-from .configuration import configuration
-from .sql_interface import interface
+from anacron.configuration import configuration
+from anacron.sql_interface import interface
 
 
 class Worker:
