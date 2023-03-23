@@ -19,7 +19,7 @@ class TestEngine(unittest.TestCase):
         # clean up if tests don't run through
         sf = configuration.configuration.semaphore_file
         if sf.exists():
-            sf.unlink()  # nissin_ok parameter needs Python >= 3.8
+            sf.unlink()  # nissing_ok parameter needs Python >= 3.8
 
     def test_inactive(self):
         # start should return None
