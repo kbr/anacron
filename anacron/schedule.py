@@ -1,4 +1,9 @@
+"""
+schedule.py
 
+for cronjobs: from the last schedule (or now) and a given crontab,
+calculates the next schedule.
+"""
 import calendar
 import datetime
 from datetime import timedelta
@@ -14,7 +19,7 @@ class CronScheduler:
     cs = CronScheduler()
     next_schedule = cs.get_next_schedule()
     """
-
+    # pylint: disable=too-many-arguments
     def __init__(self, last_schedule=None, minutes=None, hours=None,
                  dow=None, months=None, dom=None, crontab=None):
         """
@@ -72,7 +77,7 @@ class CronScheduler:
         crontab-content is *not* checked for correctness).
         """
         if not crontab:
-            return False
+            return
         outer = []
         for item in crontab.split():
             item = item.strip()
@@ -81,13 +86,15 @@ class CronScheduler:
                 continue
             inner = []
             for element in item.split(','):
-                mo = re.match(r'(\d+)-(\d+)', element)
-                if mo:
-                    inner.extend([i for i in range(
-                        int(mo.group(1)), int(mo.group(2))+1)])
+                match_object = re.match(r'(\d+)-(\d+)', element)
+                if match_object:
+                    inner.extend(list(range(
+                        int(match_object.group(1)), int(match_object.group(2))+1
+                    )))
                 else:
                     inner.append(int(element))
             outer.append(inner)
+        # pylint: disable=unbalanced-tuple-unpacking
         self.minutes, self.hours, self.dow, self.months, self.dom = outer
 
     def get_next_schedule(self, last_schedule=None):
@@ -95,8 +102,8 @@ class CronScheduler:
         Returns the next schedule based on the current date as a
         datetime-object.
         """
-        ls = last_schedule or self.last_schedule
-        next_schedule = self.find_next_schedule(ls)
+        last_schedule = last_schedule or self.last_schedule
+        next_schedule = self.find_next_schedule(last_schedule)
         if not self.month_allowed(next_schedule):
             schedule = self.set_allowed_month(next_schedule)
             return self.get_next_schedule(schedule)
@@ -157,7 +164,7 @@ class CronScheduler:
         Returns a datetime-object.
         """
         # short cut
-        ls = last_schedule
+        ls = last_schedule  # pylint: disable=invalid-name
         next_minute = self.get_next_minute(ls)
         if next_minute > ls.minute:
             # same day, same hour

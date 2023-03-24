@@ -1,3 +1,9 @@
+"""
+anacron:
+
+simple background task handling with no dependencies.
+"""
+
 # import shortcuts:
 from .decorators import cron, delegate
 

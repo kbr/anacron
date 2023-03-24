@@ -31,7 +31,11 @@ class Worker:
         ):
             signal.signal(_signal, self.terminate)
 
-    def terminate(self, *args):
+    def terminate(self, *args):  # pylint: disable=unused-argument
+        """
+        Signal handler to stop the process, terminates the loop in
+        `run()`.
+        """
         self.active = False
 
     def run(self):
@@ -81,21 +85,21 @@ class Worker:
             args = task["args"]
             kwargs = task["kwargs"]
             self.result = function(*args, **kwargs)
-        except Exception as err:
-            self.error_message = err.__repr__()
+        except Exception as err:  # pylint: disable=broad-exception-caught
+            self.error_message = repr(err)
 
     def postprocess_task(self, task):
         """
         Delete or update the task and do something with the result or
         error-message.
         """
-        pass
         # clean up after processing
         self.error_message = None
         self.result = None
 
 
 def start_worker():
+    """subprocess entry-point"""
     worker = Worker()
     worker.run()
 

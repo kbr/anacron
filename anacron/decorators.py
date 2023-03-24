@@ -27,8 +27,8 @@ def cron(crontab=DEFAULT_CRONTAB):
     """
     def wrapper(func):
         if configuration.is_active:
-            cs = CronScheduler(crontab=crontab)
-            schedule = cs.get_next_schedule()
+            scheduler = CronScheduler(crontab=crontab)
+            schedule = scheduler.get_next_schedule()
             for entry in interface.find_callables(func):
                 # there should be just a single entry.
                 # however iterate over all entries and
@@ -54,7 +54,6 @@ def delegate(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         interface.register_callable(func, args=args, kwargs=kwargs)
-        return None  # or uuid later?
 
     if not configuration.is_active:
         return func

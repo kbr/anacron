@@ -86,9 +86,13 @@ class Engine:
                 return True  # monitor started
         return False  # monitor not started
 
-    def stop(self, *args):
+    def stop(self, *args):  # pylint: disable=unused-argument
         """
-        Shut down monitor thread and release semaphore file.
+        Shut down monitor thread and release semaphore file. `args`
+        collect arguments provided because the method is a
+        signal-handler. The arguments are the signal number and the
+        current stack frame, that could be None or a frame object. To
+        shut down, both arguments are ignored.
         """
         if self.monitor_thread.is_alive():
             self.exit_event.set()
