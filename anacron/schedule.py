@@ -4,6 +4,8 @@ schedule.py
 for cronjobs: from the last schedule (or now) and a given crontab,
 calculates the next schedule.
 """
+# pylint: disable=too-many-arguments
+
 import calendar
 import datetime
 from datetime import timedelta
@@ -19,7 +21,6 @@ class CronScheduler:
     cs = CronScheduler()
     next_schedule = cs.get_next_schedule()
     """
-    # pylint: disable=too-many-arguments
     def __init__(self, last_schedule=None, minutes=None, hours=None,
                  dow=None, months=None, dom=None, crontab=None):
         """
@@ -37,14 +38,12 @@ class CronScheduler:
         dom: list of intergs for the day in a month a task should run [1-31]
         """
         self.last_schedule = last_schedule or datetime.datetime.now()
-        if crontab:
-            self.parse_crontab(crontab)
-        else:
-            self.minutes = minutes
-            self.hours = hours
-            self.dow = dow
-            self.months = months
-            self.dom = dom
+        self.minutes = minutes
+        self.hours = hours
+        self.dow = dow
+        self.months = months
+        self.dom = dom
+        self.parse_crontab(crontab)
 
     def parse_crontab(self, crontab):
         """
@@ -76,26 +75,29 @@ class CronScheduler:
         May raise errors if the crontab could not be parsed. The
         crontab-content is *not* checked for correctness).
         """
-        if not crontab:
-            return
-        outer = []
-        for item in crontab.split():
-            item = item.strip()
-            if item == '*':
-                outer.append(None)
-                continue
-            inner = []
-            for element in item.split(','):
-                match_object = re.match(r'(\d+)-(\d+)', element)
-                if match_object:
-                    inner.extend(list(range(
-                        int(match_object.group(1)), int(match_object.group(2))+1
-                    )))
-                else:
-                    inner.append(int(element))
-            outer.append(inner)
-        # pylint: disable=unbalanced-tuple-unpacking
-        self.minutes, self.hours, self.dow, self.months, self.dom = outer
+        def crontab_values():
+            for item in crontab.split():
+                item = item.strip()
+                if item == '*':
+                    yield None
+                    continue
+                inner = []
+                for element in item.split(','):
+                    match_object = re.match(r'(\d+)-(\d+)', element)
+                    if match_object:
+                        inner.extend(list(range(
+                            int(match_object.group(1)),
+                            int(match_object.group(2))+1
+                        )))
+                    else:
+                        inner.append(int(element))
+                yield inner
+
+        if crontab:
+            crontab_value = crontab_values()
+            # some magic: dynamic setting of instance attributes
+            for name in ("minutes", "hours", "dow", "months", "dom"):
+                setattr(self, name, next(crontab_value))
 
     def get_next_schedule(self, last_schedule=None):
         """
