@@ -4,12 +4,12 @@ engine.py
 Implementation of the anacron engine and the worker monitor.
 """
 import pathlib
-import signal
 import subprocess
 import sys
 import threading
 
 from .configuration import configuration
+from .utils import register_shutdown_handler
 
 
 WORKER_MODULE_NAME = "worker.py"
@@ -54,14 +54,6 @@ class Engine:
         self.exit_event = threading.Event()
         self.monitor_thread = None
         self.monitor = None
-        for _signal in (
-            signal.SIGHUP,
-            signal.SIGINT,
-            signal.SIGQUIT,
-            signal.SIGTERM,
-            signal.SIGXCPU
-        ):
-            signal.signal(_signal, self.stop)
 
     def start(self, database_file=None):
         """
@@ -78,6 +70,7 @@ class Engine:
                 pass
             else:
                 # start monitor thread
+                register_shutdown_handler(self.stop)
                 self.monitor_thread = threading.Thread(
                     target=worker_monitor,
                     args=(self.exit_event, database_file)

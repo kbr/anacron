@@ -5,11 +5,11 @@ worker class for handling cron and delegated tasks.
 """
 
 import importlib
-import signal
 import time
 
 from anacron.configuration import configuration
 from anacron.sql_interface import interface
+from anacron.utils import register_shutdown_handler
 
 
 class Worker:
@@ -21,15 +21,6 @@ class Worker:
         self.active = True
         self.result = None
         self.error_message = None
-        # set the termination handler
-        for _signal in (
-            signal.SIGHUP,
-            signal.SIGINT,
-            signal.SIGQUIT,
-            signal.SIGTERM,
-            signal.SIGXCPU
-        ):
-            signal.signal(_signal, self.terminate)
 
     def terminate(self, *args):  # pylint: disable=unused-argument
         """
@@ -43,6 +34,8 @@ class Worker:
         Main event loop for the worker. Takes callables and processes
         them as long as callables are available. Otherwise keep idle.
         """
+        # register handler to terminate `run()`
+        register_shutdown_handler(self.terminate)
         while self.active:
             if not self.handle_tasks():
                 time.sleep(configuration.worker_idle_time)
