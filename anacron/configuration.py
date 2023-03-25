@@ -50,19 +50,30 @@ class Configuration:
         home_dir.mkdir(exist_ok=True)
         return home_dir
 
+    @staticmethod
+    def _get_filename_prefix():
+        """
+        Return a prefix for files in the .anacron directory to support
+        multiple running applications.
+        """
+        cwd = pathlib.Path().cwd().as_posix()
+        return cwd.replace("/", "_")
+
     @property
     def db_file(self):
         """
         Provides the path to the semaphore-file.
         """
-        return self.db_path / self.db_filename
+        fname = f"{self._get_filename_prefix()}_{self.db_filename}"
+        return self.db_path / fname
 
     @property
     def semaphore_file(self):
         """
         Provides the path to the semaphore-file.
         """
-        return self.db_path / SEMAPHORE_FILE_NAME
+        fname = f"{self._get_filename_prefix()}_{SEMAPHORE_FILE_NAME}"
+        return self.db_path / fname
 
     @property
     def cwd(self):
