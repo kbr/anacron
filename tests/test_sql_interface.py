@@ -200,10 +200,10 @@ class TestCronDecorator(unittest.TestCase):
 
 
 def delegate_function():
-    pass
+    return 42
 
 
-class TestDelegateDecorator(unittest.TestCase):
+class TestNewDelegateDecorator(unittest.TestCase):
 
     def setUp(self):
         self.orig_interface = decorators.interface
@@ -214,20 +214,42 @@ class TestDelegateDecorator(unittest.TestCase):
         decorators.interface = self.orig_interface
 
     def test_inactive(self):
+        # does not return the original function but calls
+        # the original function indirect instead of registering
+        # the task in the db.
         wrapper = decorators.delegate(delegate_function)
-        assert wrapper is delegate_function
-        entries = list(decorators.interface.find_callables(delegate_function))
+        assert wrapper() == 42
+        entries = decorators.interface.find_callables(delegate_function)
         assert len(entries) == 0
+        # call decorator with parameter
+        call = decorators.delegate(provide_result=False)
+        wrapper = call(delegate_function)
+        entries = decorators.interface.find_callables(delegate_function)
+        assert len(entries) == 0
+        assert wrapper() == 42
 
-    def test_active(self):
+    def test_active_no_argument(self):
         configuration.configuration.is_active = True
         wrapper = decorators.delegate(delegate_function)
-        assert wrapper is not delegate_function
-        entries = list(decorators.interface.find_callables(delegate_function))
-        assert len(entries) == 0
-        # call to wrapper store task in db:
-        wrapper()
-        entries = list(decorators.interface.find_callables(delegate_function))
+        assert wrapper() != 42
+        entries = decorators.interface.find_callables(delegate_function)
         assert len(entries) == 1
         configuration.configuration.is_active = False
 
+    def test_active_with_argument(self):
+        configuration.configuration.is_active = True
+        call = decorators.delegate(provide_result=False)
+        wrapper = call(delegate_function)
+        assert wrapper() is None  # provide_result is False
+        entries = decorators.interface.find_callables(delegate_function)
+        assert len(entries) == 1
+        configuration.configuration.is_active = False
+
+    def test_active_with_argument_get_uuid(self):
+        configuration.configuration.is_active = True
+        call = decorators.delegate(provide_result=True)
+        wrapper = call(delegate_function)
+        assert isinstance(wrapper(), str) is True  # provide_result is True
+        entries = decorators.interface.find_callables(delegate_function)
+        assert len(entries) == 1
+        configuration.configuration.is_active = False

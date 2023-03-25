@@ -102,7 +102,15 @@ class SQLiteInterface:
         return [process(row) for row in cursor.fetchall()]
 
     # pylint: disable=too-many-arguments
-    def register_callable(self, func, schedule=None, crontab="", args=(), kwargs=None):
+    def register_callable(
+        self,
+        func,
+        uuid=None,
+        schedule=None,
+        crontab="",
+        args=(),
+        kwargs=None,
+    ):
         """
         Store a callable in the database.
         """

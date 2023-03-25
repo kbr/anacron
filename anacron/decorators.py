@@ -1,7 +1,8 @@
 """
 decorators.py
 """
-import functools
+
+import uuid
 
 from .configuration import configuration
 from .schedule import CronScheduler
@@ -43,18 +44,54 @@ def cron(crontab=DEFAULT_CRONTAB):
     return wrapper
 
 
-def delegate(func):
+class delegate:  # pylint: disable=invalid-name
     """
-    Decorator function for a delayed task.
+    class based decorator for a delayed task.
+    Can get called with an optional argument:
 
-    The decorated function will return immediately without running
-    the function. The function will get executed later.
+        @delegate
+        def do_work(arguments):
+            ...
+
+    A call to `do_work()` will return None and the function itself will
+    get handled with some delay in another process.
+
+    The decorator get called with an optional argument (in the example
+    given as keyword-argument, but will also work with just `True`
+    provided as first argument):
+
+        @delegate(provide_result=True)
+        def do_work(arguments):
+            ...
+
+    In this case a call to `do_work()` will return an id (a `uuid`) that
+    can be used later to fetch the result.
+
     """
+    def __init__(self, provide_result=False):
+        if callable(provide_result):
+            self.func = provide_result
+            self.provide_result = None
+        else:
+            self.func = None
+            self.provide_result = provide_result
 
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        interface.register_callable(func, args=args, kwargs=kwargs)
+    def __call__(self, *args, **kwargs):
+        if self.func:
+            return self.wrapper(*args, **kwargs)
+        self.func = args[0]
+        return self.wrapper
 
-    if not configuration.is_active:
-        return func
-    return wrapper
+    def wrapper(self, *args, **kwargs):
+        """Wraps the decorated function
+        """
+        if not configuration.is_active:
+            return self.func(*args, **kwargs)
+        data = {"args": args, "kwargs": kwargs}
+        if self.provide_result:
+            uid = uuid.uuid4().hex
+        else:
+            uid = None
+        data["uuid"] = uid
+        interface.register_callable(self.func, **data)
+        return uid
