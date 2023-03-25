@@ -63,6 +63,7 @@ class Worker:
 
             {
                 "rowid": integer,
+                "uuid": string,
                 "schedule": datetime,
                 "crontab": string,
                 "function_module": string,
@@ -86,6 +87,13 @@ class Worker:
         Delete or update the task and do something with the result or
         error-message.
         """
+        # if the task has a uuid store the result / error-message:
+        pass
+        # if the task has a crontab calculate new schedule
+        # and update the task-entry
+        pass
+        # else (not a cronjob) delete the task from the db
+        pass
         # clean up after processing
         self.error_message = None
         self.result = None
