@@ -15,6 +15,7 @@ DB_TABLE_NAME_TASK = "task"
 CMD_CREATE_TASK_TABLE = f"""
 CREATE TABLE IF NOT EXISTS {DB_TABLE_NAME_TASK}
 (
+    uuid TEXT,
     schedule datetime PRIMARY KEY,
     crontab TEXT,
     function_module TEXT,
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS {DB_TABLE_NAME_TASK}
 CMD_STORE_CALLABLE = f"""
 INSERT INTO {DB_TABLE_NAME_TASK} VALUES
 (
+    :uuid,
     :schedule,
     :crontab,
     :function_module,
@@ -33,7 +35,7 @@ INSERT INTO {DB_TABLE_NAME_TASK} VALUES
 )
 """
 COLUMN_SEQUENCE = "\
-    rowid,schedule,crontab,function_module,function_name,function_arguments"
+    rowid,uuid,schedule,crontab,function_module,function_name,function_arguments"
 CMD_GET_CALLABLES_BY_NAME = f"""\
     SELECT {COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_TASK}
     WHERE function_module == ? AND function_name == ?"""
@@ -68,6 +70,7 @@ class SQLiteInterface:
 
             {
                 "rowid": integer,
+                "uuid": string,
                 "schedule": datetime,
                 "crontab": string,
                 "function_module": string,
@@ -120,6 +123,7 @@ class SQLiteInterface:
             kwargs = {}
         arguments = pickle.dumps((args, kwargs))
         data = {
+            "uuid": uuid,
             "schedule": schedule,
             "crontab": crontab,
             "function_module": func.__module__,
