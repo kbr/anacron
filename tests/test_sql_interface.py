@@ -4,6 +4,7 @@ test_sql_interface.py
 testcode for sql-actions
 """
 
+import collections
 import datetime
 import pathlib
 import time
@@ -46,7 +47,7 @@ class TestSQLInterface(unittest.TestCase):
         self.interface.register_callable(test_callable)
         entries = self.interface.get_tasks_on_due()
         obj = entries[0]
-        assert type(obj) is dict
+        assert isinstance(obj, collections.UserDict) is True
         assert obj["function_module"] == test_callable.__module__
         assert obj["function_name"] == test_callable.__name__
 

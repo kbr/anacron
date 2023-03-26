@@ -4,9 +4,11 @@ sql_interface.py
 SQLite interface for storing tasks
 """
 
+import collections
 import datetime
 import pickle
 import sqlite3
+import types
 
 from .configuration import configuration
 
@@ -45,6 +47,16 @@ CMD_UPDATE_SCHEDULE = f"\
     UPDATE {DB_TABLE_NAME_TASK} SET schedule = ? WHERE rowid == ?"
 CMD_DELETE_CALLABLE = f"DELETE FROM {DB_TABLE_NAME_TASK} WHERE rowid == ?"
 SQLITE_STRFTIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+
+
+class AttrDict(collections.UserDict):
+    """
+    Wrapper for a dict to allow value-access by key and
+    attribute-lookup.
+    """
+    def __getattr__(self, name):
+        """support attribute-like access"""
+        return self[name]
 
 
 class SQLiteInterface:
@@ -101,7 +113,7 @@ class SQLiteInterface:
             )
             data["args"] = args
             data["kwargs"] = kwargs
-            return data
+            return AttrDict(data)
         return [process(row) for row in cursor.fetchall()]
 
     # pylint: disable=too-many-arguments
