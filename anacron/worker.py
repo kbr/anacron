@@ -85,13 +85,18 @@ class Worker:
         Delete or update the task and do something with the result or
         error-message.
         """
-        # if the task has a uuid, store the result / error-message:
-        pass
-        # if the task has a crontab calculate new schedule
-        # and update the task-entry
-        pass
-        # else (not a cronjob) delete the task from the db
-        pass
+        if task.uuid:
+            # if the task has a uuid, store the result / error-message
+            pass
+        if task.crontab:
+            # if the task has a crontab calculate new schedule
+            # and update the task-entry
+            scheduler = CronScheduler(crontab=task.crontab)
+            schedule = scheduler.get_next_schedule()
+            interface.update_schedule(rowid=task.rowid, schedule=schedule)
+        else:
+            # not a cronjob: delete the task from the db
+            interface.delete_callable(task)
         # clean up after processing
         self.error_message = None
         self.result = None

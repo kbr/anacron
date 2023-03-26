@@ -120,7 +120,7 @@ class SQLiteInterface:
     def register_callable(
         self,
         func,
-        uuid=None,
+        uuid="",
         schedule=None,
         crontab="",
         args=(),
