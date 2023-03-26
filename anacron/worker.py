@@ -48,7 +48,7 @@ class Worker:
         method returns True to indicate that meanwhile more tasks may be
         waiting.
         """
-        tasks = interface.get_callables()
+        tasks = interface.get_tasks_on_due()
         if tasks:
             for task in tasks:
                 self.process_task(task)

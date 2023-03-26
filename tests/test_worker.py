@@ -59,7 +59,7 @@ class TestWorkerStartStop(unittest.TestCase):
 #
 #     def test_process_task(self):
 #         self.interface.register_callable(add_test, args=(2, 40))
-#         task = self.interface.get_callables()[0]
+#         task = self.interface.get_tasks_on_due()[0]
 #         self.worker.process_task(task)
 #         assert self.worker.result == 42
 #

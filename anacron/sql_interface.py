@@ -132,9 +132,9 @@ class SQLiteInterface:
         }
         self._execute(CMD_STORE_CALLABLE, data)
 
-    def get_callables(self, schedule=None):
+    def get_tasks_on_due(self, schedule=None):
         """
-        Returns a list of all callables that according to their
+        Returns a list of all callables (tasks) that according to their
         schedules are on due. Callables are represented by a dictionary
         as returned from `_fetch_all_callable_entries()`
         """
@@ -156,7 +156,7 @@ class SQLiteInterface:
     def delete_callable(self, entry):
         """
         Delete the entry in the callable-table. Entry should be a
-        dictionary as returned from `get_callables()`. The row to delete
+        dictionary as returned from `get_tasks_on_due()`. The row to delete
         gets identified by the `rowid`.
         """
         self._execute(CMD_DELETE_CALLABLE, [entry["rowid"]])

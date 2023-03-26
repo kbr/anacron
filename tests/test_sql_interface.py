@@ -36,15 +36,15 @@ class TestSQLInterface(unittest.TestCase):
         pathlib.Path(self.interface.db_name).unlink()
 
     def test_storage(self):
-        entries = self.interface.get_callables()
+        entries = self.interface.get_tasks_on_due()
         self.assertFalse(list(entries))
         self.interface.register_callable(test_callable)
-        entries = self.interface.get_callables()
+        entries = self.interface.get_tasks_on_due()
         assert len(entries) == 1
 
     def test_entry_signature(self):
         self.interface.register_callable(test_callable)
-        entries = self.interface.get_callables()
+        entries = self.interface.get_tasks_on_due()
         obj = entries[0]
         assert type(obj) is dict
         assert obj["function_module"] == test_callable.__module__
@@ -57,7 +57,7 @@ class TestSQLInterface(unittest.TestCase):
         self.interface.register_callable(
             test_callable, crontab=crontab, args=args, kwargs=kwargs
         )
-        entries = list(self.interface.get_callables())
+        entries = list(self.interface.get_tasks_on_due())
         obj = entries[0]
         assert obj["crontab"] == crontab
         assert obj["args"] == args
@@ -69,7 +69,7 @@ class TestSQLInterface(unittest.TestCase):
         self.interface.register_callable(test_adder, schedule=schedule)
         self.interface.register_callable(test_callable)
         # test to get one callable at due
-        entries = self.interface.get_callables()
+        entries = self.interface.get_tasks_on_due()
         assert len(entries) == 1
 
     def test_schedules_get_two_of_two(self):
@@ -78,7 +78,7 @@ class TestSQLInterface(unittest.TestCase):
         self.interface.register_callable(test_adder, schedule=schedule)
         self.interface.register_callable(test_callable)
         # test to get one callable at due
-        entries = self.interface.get_callables()
+        entries = self.interface.get_tasks_on_due()
         assert len(entries) == 2
 
     def test_delete(self):
@@ -88,13 +88,13 @@ class TestSQLInterface(unittest.TestCase):
         self.interface.register_callable(test_callable)
         # test to get the `test_callable` function on due
         # and delete it from the db
-        entry = self.interface.get_callables()[0]
+        entry = self.interface.get_tasks_on_due()[0]
         assert entry["function_name"] == test_callable.__name__
         self.interface.delete_callable(entry)
         # wait and test to get the remaining single entry
         # and check whether it is the `test_adder` function
         time.sleep(0.001)
-        entries = self.interface.get_callables()
+        entries = self.interface.get_tasks_on_due()
         assert len(entries) == 1
         entry = entries[0]
         assert entry["function_name"] == test_adder.__name__
