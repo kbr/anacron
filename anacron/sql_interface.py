@@ -143,7 +143,7 @@ class SQLiteInterface:
         cursor = self._execute(CMD_GET_CALLABLES_ON_DUE, [schedule])
         return self._fetch_all_callable_entries(cursor)
 
-    def find_callables(self, func):
+    def get_tasks_by_signature(self, func):
         """
         Return a list of all callables matching the function-signature.
         Callables are represented by a dictionary as returned from

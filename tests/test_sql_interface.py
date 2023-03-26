@@ -105,20 +105,20 @@ class TestSQLInterface(unittest.TestCase):
         self.interface.register_callable(test_adder, schedule=schedule)
         self.interface.register_callable(test_callable)
         # find a nonexistent callable should return an empty generator
-        entries = self.interface.find_callables(test_multiply)
+        entries = self.interface.get_tasks_by_signature(test_multiply)
         assert len(entries) == 0
         # find a callable scheduled for the future:
-        entries = self.interface.find_callables(test_adder)
+        entries = self.interface.get_tasks_by_signature(test_adder)
         assert len(entries) == 1
 
     def test_find_callables(self):
         # it is allowed to register the same callables multiple times.
-        # regardless of the schedule `find_callables()` should return
+        # regardless of the schedule `get_tasks_by_signature()` should return
         # all entries.
         schedule = datetime.datetime.now() + datetime.timedelta(seconds=10)
         self.interface.register_callable(test_adder, schedule=schedule)
         self.interface.register_callable(test_adder)
-        entries = list(self.interface.find_callables(test_adder))
+        entries = list(self.interface.get_tasks_by_signature(test_adder))
         assert len(entries) == 2
 
     def test_update_schedule(self):
@@ -127,10 +127,10 @@ class TestSQLInterface(unittest.TestCase):
         schedule = datetime.datetime.now()
         next_schedule = schedule + datetime.timedelta(seconds=10)
         self.interface.register_callable(test_adder, schedule=schedule)
-        entry = self.interface.find_callables(test_adder)[0]
+        entry = self.interface.get_tasks_by_signature(test_adder)[0]
         assert entry["schedule"] == schedule
         self.interface.update_schedule(entry["rowid"], next_schedule)
-        entry = self.interface.find_callables(test_adder)[0]
+        entry = self.interface.get_tasks_by_signature(test_adder)[0]
         assert entry["schedule"] == next_schedule
 
 
@@ -159,7 +159,7 @@ class TestCronDecorator(unittest.TestCase):
         wrapper = decorators.cron()
         func = wrapper(cron_function)
         assert func == cron_function
-        entries = list(decorators.interface.find_callables(cron_function))
+        entries = list(decorators.interface.get_tasks_by_signature(cron_function))
         assert len(entries) == 0
 
     def test_cron_no_arguments_active(self):
@@ -169,7 +169,7 @@ class TestCronDecorator(unittest.TestCase):
         wrapper = decorators.cron()
         func = wrapper(cron_function)
         assert func == cron_function
-        entries = list(decorators.interface.find_callables(cron_function))
+        entries = list(decorators.interface.get_tasks_by_signature(cron_function))
         assert len(entries) == 1
         entry = entries[0]
         assert entry["crontab"] == decorators.DEFAULT_CRONTAB
@@ -183,7 +183,7 @@ class TestCronDecorator(unittest.TestCase):
         # should not happen:
         decorators.interface.register_callable(cron_function, crontab=decorators.DEFAULT_CRONTAB)
         decorators.interface.register_callable(cron_function, crontab=decorators.DEFAULT_CRONTAB)
-        entries = list(decorators.interface.find_callables(cron_function))
+        entries = list(decorators.interface.get_tasks_by_signature(cron_function))
         assert len(entries) == 2
         # now add the same function with the cron decorator:
         crontab = "10 2 1 * *"
@@ -192,7 +192,7 @@ class TestCronDecorator(unittest.TestCase):
         func = wrapper(cron_function)
         # just a single entry should no be in the database
         # (the one added by the decorator):
-        entries = list(decorators.interface.find_callables(cron_function))
+        entries = list(decorators.interface.get_tasks_by_signature(cron_function))
         assert len(entries) == 1
         entry = entries[0]
         assert entry["crontab"] == crontab
@@ -219,12 +219,12 @@ class TestNewDelegateDecorator(unittest.TestCase):
         # the task in the db.
         wrapper = decorators.delegate(delegate_function)
         assert wrapper() == 42
-        entries = decorators.interface.find_callables(delegate_function)
+        entries = decorators.interface.get_tasks_by_signature(delegate_function)
         assert len(entries) == 0
         # call decorator with parameter
         call = decorators.delegate(provide_result=False)
         wrapper = call(delegate_function)
-        entries = decorators.interface.find_callables(delegate_function)
+        entries = decorators.interface.get_tasks_by_signature(delegate_function)
         assert len(entries) == 0
         assert wrapper() == 42
 
@@ -232,7 +232,7 @@ class TestNewDelegateDecorator(unittest.TestCase):
         configuration.configuration.is_active = True
         wrapper = decorators.delegate(delegate_function)
         assert wrapper() != 42
-        entries = decorators.interface.find_callables(delegate_function)
+        entries = decorators.interface.get_tasks_by_signature(delegate_function)
         assert len(entries) == 1
         configuration.configuration.is_active = False
 
@@ -241,7 +241,7 @@ class TestNewDelegateDecorator(unittest.TestCase):
         call = decorators.delegate(provide_result=False)
         wrapper = call(delegate_function)
         assert wrapper() is None  # provide_result is False
-        entries = decorators.interface.find_callables(delegate_function)
+        entries = decorators.interface.get_tasks_by_signature(delegate_function)
         assert len(entries) == 1
         configuration.configuration.is_active = False
 
@@ -250,6 +250,6 @@ class TestNewDelegateDecorator(unittest.TestCase):
         call = decorators.delegate(provide_result=True)
         wrapper = call(delegate_function)
         assert isinstance(wrapper(), str) is True  # provide_result is True
-        entries = decorators.interface.find_callables(delegate_function)
+        entries = decorators.interface.get_tasks_by_signature(delegate_function)
         assert len(entries) == 1
         configuration.configuration.is_active = False

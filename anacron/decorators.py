@@ -30,7 +30,7 @@ def cron(crontab=DEFAULT_CRONTAB):
         if configuration.is_active:
             scheduler = CronScheduler(crontab=crontab)
             schedule = scheduler.get_next_schedule()
-            for entry in interface.find_callables(func):
+            for entry in interface.get_tasks_by_signature(func):
                 # there should be just a single entry.
                 # however iterate over all entries and
                 # test for a non-empty crontab-string.
