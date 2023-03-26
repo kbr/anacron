@@ -73,12 +73,10 @@ class Worker:
             }
 
         """
-        module = importlib.import_module(task["function_module"])
-        function = getattr(module, task["function_name"])
+        module = importlib.import_module(task.function_module)
+        function = getattr(module, task.function_name)
         try:
-            args = task["args"]
-            kwargs = task["kwargs"]
-            self.result = function(*args, **kwargs)
+            self.result = function(*task.args, **task.kwargs)
         except Exception as err:  # pylint: disable=broad-exception-caught
             self.error_message = repr(err)
 
