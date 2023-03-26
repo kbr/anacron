@@ -87,7 +87,7 @@ class Worker:
         Delete or update the task and do something with the result or
         error-message.
         """
-        # if the task has a uuid store the result / error-message:
+        # if the task has a uuid, store the result / error-message:
         pass
         # if the task has a crontab calculate new schedule
         # and update the task-entry
