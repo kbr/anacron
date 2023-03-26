@@ -36,16 +36,52 @@ INSERT INTO {DB_TABLE_NAME_TASK} VALUES
     :function_arguments
 )
 """
-COLUMN_SEQUENCE = "\
+TASK_COLUMN_SEQUENCE = "\
     rowid,uuid,schedule,crontab,function_module,function_name,function_arguments"
 CMD_GET_CALLABLES_BY_NAME = f"""\
-    SELECT {COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_TASK}
+    SELECT {TASK_COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_TASK}
     WHERE function_module == ? AND function_name == ?"""
 CMD_GET_CALLABLES_ON_DUE = f"""\
-    SELECT {COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_TASK} WHERE schedule <= ?"""
+    SELECT {TASK_COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_TASK} WHERE schedule <= ?"""
 CMD_UPDATE_SCHEDULE = f"\
     UPDATE {DB_TABLE_NAME_TASK} SET schedule = ? WHERE rowid == ?"
 CMD_DELETE_CALLABLE = f"DELETE FROM {DB_TABLE_NAME_TASK} WHERE rowid == ?"
+
+DB_TABLE_NAME_RESULT = "result"
+CMD_CREATE_RESULT_TABLE = f"""
+CREATE TABLE IF NOT EXISTS {DB_TABLE_NAME_RESULT}
+(
+    uuid TEXT PRIMARY KEY,
+    status INTEGER,
+    schedule datetime,
+    error_message TEXT,
+    function_module TEXT,
+    function_name TEXT,
+    function_data BLOB
+)
+"""
+CMD_STORE_RESULT = f"""
+INSERT INTO {DB_TABLE_NAME_TASK} VALUES
+(
+    :uuid,
+    :status,
+    :schedule,
+    :error_message,
+    :function_module,
+    :function_name,
+    :function_data
+)
+"""
+RESULT_COLUMN_SEQUENCE = "\
+    rowid,uuid,schedule,error_message,function_module,function_name,function_data"
+CMD_GET_RESULT_BY_UUID = f"""\
+    SELECT {RESULT_COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_RESULT}
+    WHERE uuid == ?"""
+CMD_DELETE_RESULT = f"""\
+    DELETE FROM {DB_TABLE_NAME_RESULT} WHERE uuid == ?"""
+CMD_DELETE_RESULTS = f"""\
+    DELETE FROM {DB_TABLE_NAME_RESULT} WHERE schedule <= ?"""
+
 SQLITE_STRFTIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 
@@ -104,7 +140,7 @@ class SQLiteInterface:
             args, kwargs = pickle.loads(row[-1])
             data = {
                 key: row[i] for i, key in enumerate(
-                    COLUMN_SEQUENCE.strip().split(",")[:-1]
+                    TASK_COLUMN_SEQUENCE.strip().split(",")[:-1]
                 )
             }
             # convert sqlite3 stores datetime as string
@@ -127,7 +163,7 @@ class SQLiteInterface:
         kwargs=None,
     ):
         """
-        Store a callable in the database.
+        Store a callable in the task-table of the database.
         """
         if not schedule:
             schedule = datetime.datetime.now()
@@ -143,6 +179,37 @@ class SQLiteInterface:
             "function_arguments": arguments,
         }
         self._execute(CMD_STORE_CALLABLE, data)
+
+    def register_result(self, uuid):
+        """
+        Register an entry in the result table of the database. The entry
+        will store the uuid and the status `False` indicating that the
+        execution of the task is pending and no result available jet.
+        """
+        data = {
+            "uuid": uuid,
+            "status": 0,
+            "schedule": "",
+            "crontab": "",
+            "function_module": "",
+            "function_name": "",
+            "function_arguments": pickle.dumps(None)
+        }
+        self._execute(CMD_STORE_RESULT, data)
+
+    def get_result_by_uuid(self, uuid):
+        """
+        Return a dataset (as AttrDict) or None.
+        """
+        cursor = self._execute(CMD_GET_RESULT_BY_UUID, uuid)
+        row = cursor.fetchone()  # tuple of data or None
+        if row:
+            data = {}
+            payload = pickle.loads(row[-1])
+            if payload:
+                args, kwargs, result = payload
+
+
 
     def get_tasks_on_due(self, schedule=None):
         """
