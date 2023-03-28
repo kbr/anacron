@@ -4,7 +4,6 @@ sql_interface.py
 SQLite interface for storing tasks
 """
 
-import collections
 import datetime
 import pickle
 import sqlite3
@@ -85,14 +84,23 @@ CMD_DELETE_RESULTS = f"""\
 SQLITE_STRFTIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 
-class AttrDict(collections.UserDict):
+class HybridNamespace(types.SimpleNamespace):
     """
-    Wrapper for a dict to allow value-access by key and
-    attribute-lookup.
+    A namespace-object with dictionary-like attribute access.
     """
-    def __getattr__(self, name):
-        """support attribute-like access"""
-        return self[name]
+    def __init__(self, data=None):
+        """
+        Set initial values.
+        If data is given, it must be a dictionary.
+        """
+        if data is not None:
+            self.__dict__.update(data)
+
+    def __getitem__(self, name):
+        return self.__dict__[name]
+
+    def __setitem__(self, name, value):
+        self.__dict__[name] = value
 
 
 class SQLiteInterface:
@@ -110,6 +118,7 @@ class SQLiteInterface:
         with con:
             return con.execute(cmd, parameters)
 
+    # -- task-methods ---
     @staticmethod
     def _fetch_all_callable_entries(cursor):
         """
@@ -149,7 +158,7 @@ class SQLiteInterface:
             )
             data["args"] = args
             data["kwargs"] = kwargs
-            return AttrDict(data)
+            return HybridNamespace(data)
         return [process(row) for row in cursor.fetchall()]
 
     # pylint: disable=too-many-arguments
@@ -179,37 +188,6 @@ class SQLiteInterface:
             "function_arguments": arguments,
         }
         self._execute(CMD_STORE_CALLABLE, data)
-
-    def register_result(self, uuid):
-        """
-        Register an entry in the result table of the database. The entry
-        will store the uuid and the status `False` indicating that the
-        execution of the task is pending and no result available jet.
-        """
-        data = {
-            "uuid": uuid,
-            "status": 0,
-            "schedule": "",
-            "crontab": "",
-            "function_module": "",
-            "function_name": "",
-            "function_arguments": pickle.dumps(None)
-        }
-        self._execute(CMD_STORE_RESULT, data)
-
-    def get_result_by_uuid(self, uuid):
-        """
-        Return a dataset (as AttrDict) or None.
-        """
-        cursor = self._execute(CMD_GET_RESULT_BY_UUID, uuid)
-        row = cursor.fetchone()  # tuple of data or None
-        if row:
-            data = {}
-            payload = pickle.loads(row[-1])
-            if payload:
-                args, kwargs, result = payload
-
-
 
     def get_tasks_on_due(self, schedule=None):
         """
@@ -246,6 +224,46 @@ class SQLiteInterface:
         """
         parameters = schedule, rowid
         self._execute(CMD_UPDATE_SCHEDULE, parameters)
+
+    # -- result-methods ---
+    def register_result(
+            self,
+            uuid,
+            status=0,
+            schedule=None,
+            error_message="",
+            function_module="",
+            function_name="",
+            function_arguments=None,
+        ):
+        """
+        Register an entry in the result table of the database. The entry
+        stores the uuid and the status `False` as zero `0` because the
+        task is pending and no result available jet.
+        """
+        if schedule is None:
+            schedule = datetime.datetime.now()
+        data = {
+            "uuid": uuid,
+            "status": status,
+            "schedule": schedule,
+            "error_message": error_message,
+            "function_module": function_module,
+            "function_name": function_name,
+            "function_arguments": pickle.dumps(function_arguments)
+        }
+        self._execute(CMD_STORE_RESULT, data)
+
+    def get_result_by_uuid(self, uuid):
+        """
+        Return a dataset (as HybridNamespace) or None.
+        """
+        cursor = self._execute(CMD_GET_RESULT_BY_UUID, uuid)
+        row = cursor.fetchone()  # tuple of data or None
+        # TODO: build HybridNamespace in case of data
+        return row
+
+
 
 
 interface = SQLiteInterface(db_name=configuration.db_file)

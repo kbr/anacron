@@ -47,7 +47,7 @@ class TestSQLInterface(unittest.TestCase):
         self.interface.register_callable(test_callable)
         entries = self.interface.get_tasks_on_due()
         obj = entries[0]
-        assert isinstance(obj, collections.UserDict) is True
+        assert isinstance(obj, sql_interface.HybridNamespace) is True
         assert obj["function_module"] == test_callable.__module__
         assert obj["function_name"] == test_callable.__name__
 
@@ -254,3 +254,30 @@ class TestNewDelegateDecorator(unittest.TestCase):
         entries = decorators.interface.get_tasks_by_signature(delegate_function)
         assert len(entries) == 1
         configuration.configuration.is_active = False
+
+
+class TestAttrDict(unittest.TestCase):
+
+    def setUp(self):
+        self.data = {"pi": 3.141, "answer": 42}
+        self.attr_dict = sql_interface.HybridNamespace(self.data)
+
+    def test_dict_access(self):
+        self.attr_dict["one"] = 1
+        assert self.attr_dict["one"] == 1
+
+    def test_attribute_access(self):
+        self.attr_dict.two = 2
+        assert self.attr_dict.two == 2
+
+    def test_mixed_access(self):
+        self.attr_dict.three = 3
+        assert self.attr_dict["three"] == 3
+        self.attr_dict["four"] = 4
+        assert self.attr_dict.four == 4
+
+    def test_get_init_values(self):
+        assert self.attr_dict["pi"] == self.data["pi"]
+        assert self.attr_dict.pi == self.data["pi"]
+        assert self.attr_dict["answer"] == self.data["answer"]
+        assert self.attr_dict.answer == self.data["answer"]
