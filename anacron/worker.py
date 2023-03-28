@@ -8,6 +8,7 @@ import importlib
 import time
 
 from anacron.configuration import configuration
+from anacron.schedule import CronScheduler
 from anacron.sql_interface import interface
 from anacron.utils import register_shutdown_handler
 
