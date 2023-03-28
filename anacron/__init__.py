@@ -11,7 +11,7 @@ from .decorators import (
 from .engine import Engine
 
 
-__all__ = [cron, delegate]
+__all__ = ["cron", "delegate"]
 __version__ = "0.1.dev"
 
 
