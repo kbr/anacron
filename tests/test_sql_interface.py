@@ -157,6 +157,8 @@ class TestSQLInterface(unittest.TestCase):
         result = self.interface.get_result_by_uuid(uuid_)
         assert result.is_ready is True
         assert result.function_result == answer
+        # test shortcut for function_result:
+        assert result.result == answer
 
 
 

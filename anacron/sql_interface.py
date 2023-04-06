@@ -57,7 +57,8 @@ CREATE TABLE IF NOT EXISTS {DB_TABLE_NAME_RESULT}
     function_name TEXT,
     function_arguments BLOB,
     function_result BLOB,
-    error_message TEXT
+    error_message TEXT,
+    ttl datetime
 )
 """
 CMD_STORE_RESULT = f"""
@@ -69,12 +70,13 @@ INSERT INTO {DB_TABLE_NAME_RESULT} VALUES
     :function_name,
     :function_arguments,
     :function_result,
-    :error_message
+    :error_message,
+    :ttl
 )
 """
 RESULT_COLUMN_SEQUENCE =\
     "rowid,uuid,status,function_module,function_name,"\
-    "function_arguments,function_result,error_message"
+    "function_arguments,function_result,error_message, ttl"
 CMD_GET_RESULT_BY_UUID = f"""\
     SELECT {RESULT_COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_RESULT}
     WHERE uuid == ?"""
@@ -82,7 +84,8 @@ CMD_UPDATE_RESULT = f"""
     UPDATE {DB_TABLE_NAME_RESULT} SET
         status = ?,
         function_result = ?,
-        error_message = ?
+        error_message = ?,
+        ttl = ?
     WHERE uuid == ?"""
 # CMD_DELETE_RESULT = f"""\
 #     DELETE FROM {DB_TABLE_NAME_RESULT} WHERE uuid == ?"""
@@ -119,6 +122,10 @@ class TaskResult(HybridNamespace):
     """
     Helper class to make task-results more handy.
     """
+
+    @property
+    def result(self):
+        return self.function_result
 
     @property
     def is_waiting(self):
@@ -254,6 +261,11 @@ class SQLiteInterface:
         self._execute(CMD_UPDATE_SCHEDULE, parameters)
 
     # -- result-methods ---
+
+    @staticmethod
+    def _get_result_ttl():
+        return datetime.datetime.now() + configuration.result_ttl
+
     def register_result(
             self,
             func,
@@ -277,6 +289,7 @@ class SQLiteInterface:
             "function_arguments": arguments,
             "function_result": pickle.dumps(None),
             "error_message": "",
+            "ttl": self._get_result_ttl(),
         }
         self._execute(CMD_STORE_RESULT, data)
 
@@ -302,7 +315,8 @@ class SQLiteInterface:
         """
         status = TASK_STATUS_ERROR if error_message else TASK_STATUS_READY
         function_result = pickle.dumps(result)
-        parameters = status, function_result, error_message, uuid
+        ttl = self._get_result_ttl()
+        parameters = status, function_result, error_message, ttl, uuid
         self._execute(CMD_UPDATE_RESULT, parameters)
 
 

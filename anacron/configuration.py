@@ -5,6 +5,7 @@ Module to get the configuration from the standard (default) settings or
 adapt them from web-frameworks (currently django).
 """
 
+import datetime
 import pathlib
 
 try:
@@ -18,6 +19,7 @@ DB_FILE_NAME = "anacron.db"
 SEMAPHORE_FILE_NAME = "anacron.flag"
 MONITOR_IDLE_TIME = 1.0  # seconds
 WORKER_IDLE_TIME = 1.0  # seconds
+RESULT_TTL = 30  # storage time to live for results in minutes
 
 
 class Configuration:
@@ -30,6 +32,7 @@ class Configuration:
         self.db_filename = db_filename
         self.monitor_idle_time = MONITOR_IDLE_TIME
         self.worker_idle_time = WORKER_IDLE_TIME
+        self.result_ttl = datetime.timedelta(minutes=RESULT_TTL)
         self.is_active = False
         if DJANGO_IS_INSTALLED:
             self.is_active = not settings.DEBUG
