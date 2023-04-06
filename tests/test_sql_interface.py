@@ -1,7 +1,7 @@
 """
 test_sql_interface.py
 
-testcode for sql-actions
+testcode for sql-actions and for decorators
 """
 
 import collections
@@ -14,6 +14,7 @@ import uuid
 from anacron import configuration
 from anacron import decorators
 from anacron import sql_interface
+from anacron import worker
 
 
 TEST_DB_NAME = "test.db"
@@ -239,12 +240,15 @@ def delegate_function():
 class TestNewDelegateDecorator(unittest.TestCase):
 
     def setUp(self):
-        self.orig_interface = decorators.interface
-        decorators.interface = sql_interface.SQLiteInterface(db_name=TEST_DB_NAME)
+        self.orig_decorator_interface = decorators.interface
+        self.orig_worker_interface = worker.interface
+        worker.interface = decorators.interface =\
+            sql_interface.SQLiteInterface(db_name=TEST_DB_NAME)
 
     def tearDown(self):
         pathlib.Path(decorators.interface.db_name).unlink()
-        decorators.interface = self.orig_interface
+        decorators.interface = self.orig_decorator_interface
+        worker.interface = self.orig_worker_interface
 
     def test_inactive(self):
         # does not return the original function but calls
@@ -287,8 +291,52 @@ class TestNewDelegateDecorator(unittest.TestCase):
         assert len(entries) == 1
         configuration.configuration.is_active = False
 
+    def test_active_with_argument_and_get_result(self):
+        """
+        Test story:
 
-class TestAttrDict(unittest.TestCase):
+        1. wrap a function with the delegate decorator and provide
+           arguments. This should return a uuid.
+        2. Check for task entry in db.
+        3. Then call `Worker.handle_tasks` what should return True.
+        4. Then call `interface.get_result_by_uuid` which should return
+           a TaskResult instance with the correct result.
+
+        """
+        # 1: wrap function and call the wrapper with arguments
+        configuration.configuration.is_active = True
+        call = decorators.delegate(provide_result=True)
+        wrapper = call(test_adder)
+        uuid_ = wrapper(40, 2)
+        assert uuid_ is not None
+
+        # 2: a single entry is now now in both tables:
+        time.sleep(0.001)  # have some patience with the db.
+        task_entries = decorators.interface.get_tasks_by_signature(test_adder)
+        assert len(task_entries) == 1
+        result = decorators.interface.get_result_by_uuid(uuid_)
+        assert result is not None
+        assert result.is_waiting is True
+
+        # 3: let the worker handle the task:
+        worker_ = worker.Worker()  # instanciate but don't start the worker
+        # return True if at least one task has handled:
+        return_value = worker_.handle_tasks()
+        assert return_value is True
+        time.sleep(0.001)  # have some patience with the db.
+        # after handling the task should be removed from the db:
+        task_entries = decorators.interface.get_tasks_by_signature(test_adder)
+        assert len(task_entries) == 0
+
+        # 4: check whether the worker has updated the result entry in the db:
+        result = decorators.interface.get_result_by_uuid(uuid_)
+        assert result.is_ready is True
+        assert result.result == 42  # 40 + 2
+        # shut down:
+        configuration.configuration.is_active = False
+
+
+class TestHybridNamespace(unittest.TestCase):
 
     def setUp(self):
         self.data = {"pi": 3.141, "answer": 42}

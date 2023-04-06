@@ -88,7 +88,11 @@ class Worker:
         """
         if task.uuid:
             # if the task has a uuid, store the result / error-message
-            pass
+            interface.update_result(
+                uuid=task.uuid,
+                result=self.result,
+                error_message=self.error_message
+            )
         if task.crontab:
             # if the task has a crontab calculate new schedule
             # and update the task-entry

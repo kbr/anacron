@@ -94,4 +94,7 @@ class delegate:  # pylint: disable=invalid-name
             uid = None
         data["uuid"] = uid
         interface.register_callable(self.func, **data)
+        if uid:
+            # result requested:
+            interface.register_result(self.func, **data)
         return uid
