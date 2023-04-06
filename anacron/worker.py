@@ -52,6 +52,8 @@ class Worker:
         tasks = interface.get_tasks_on_due()
         if tasks:
             for task in tasks:
+                self.error_message = None
+                self.result = None
                 self.process_task(task)
                 self.postprocess_task(task)
             return True
@@ -102,9 +104,6 @@ class Worker:
         else:
             # not a cronjob: delete the task from the db
             interface.delete_callable(task)
-        # clean up after processing
-        self.error_message = None
-        self.result = None
 
 
 def start_worker():
