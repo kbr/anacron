@@ -9,6 +9,7 @@ import datetime
 import pathlib
 import time
 import unittest
+import uuid
 
 from anacron import configuration
 from anacron import decorators
@@ -100,7 +101,7 @@ class TestSQLInterface(unittest.TestCase):
         entry = entries[0]
         assert entry["function_name"] == test_adder.__name__
 
-    def test_find_callable(self):
+    def test_get_task_by_signature(self):
         # register two callables, one with a schedule in the future
         schedule = datetime.datetime.now() + datetime.timedelta(seconds=10)
         self.interface.register_callable(test_adder, schedule=schedule)
@@ -112,7 +113,7 @@ class TestSQLInterface(unittest.TestCase):
         entries = self.interface.get_tasks_by_signature(test_adder)
         assert len(entries) == 1
 
-    def test_find_callables(self):
+    def test_get_tasks_by_signature(self):
         # it is allowed to register the same callables multiple times.
         # regardless of the schedule `get_tasks_by_signature()` should return
         # all entries.
@@ -134,6 +135,20 @@ class TestSQLInterface(unittest.TestCase):
         entry = self.interface.get_tasks_by_signature(test_adder)[0]
         assert entry["schedule"] == next_schedule
 
+    def x_test_register_and_get_result(self):
+        """
+        Test story:
+        1. register_result to store a function with arguments, but not
+        the result that gets calculated later.
+        2. calculate the result und find the registered result-entry by
+        the uuid. The status should be 0 (False).
+        3. update the result-entry with the result and an error-message.
+        (in real use cases there would be the result or the
+        error-message.)
+        4. find the updated result-entry again by the uuid.
+
+        """
+#         uuid = uuid.uuid4().hex
 
 
 

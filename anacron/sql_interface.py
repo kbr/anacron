@@ -35,8 +35,9 @@ INSERT INTO {DB_TABLE_NAME_TASK} VALUES
     :function_arguments
 )
 """
-TASK_COLUMN_SEQUENCE = "\
-    rowid,uuid,schedule,crontab,function_module,function_name,function_arguments"
+TASK_COLUMN_SEQUENCE =\
+    "rowid,uuid,schedule,crontab,"\
+    "function_module,function_name,function_arguments"
 CMD_GET_CALLABLES_BY_NAME = f"""\
     SELECT {TASK_COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_TASK}
     WHERE function_module == ? AND function_name == ?"""
@@ -56,7 +57,8 @@ CREATE TABLE IF NOT EXISTS {DB_TABLE_NAME_RESULT}
     error_message TEXT,
     function_module TEXT,
     function_name TEXT,
-    function_data BLOB
+    function_arguments BLOB,
+    function_result BLOB
 )
 """
 CMD_STORE_RESULT = f"""
@@ -64,22 +66,24 @@ INSERT INTO {DB_TABLE_NAME_TASK} VALUES
 (
     :uuid,
     :status,
-    :schedule,
+    :ttl,
     :error_message,
     :function_module,
     :function_name,
-    :function_data
+    :function_arguments
+    :function_result
 )
 """
-RESULT_COLUMN_SEQUENCE = "\
-    rowid,uuid,schedule,error_message,function_module,function_name,function_data"
+RESULT_COLUMN_SEQUENCE =\
+    "rowid,uuid,ttl,error_message,"\
+    "function_module,function_name,function_arguments,function_result"
 CMD_GET_RESULT_BY_UUID = f"""\
     SELECT {RESULT_COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_RESULT}
     WHERE uuid == ?"""
 CMD_DELETE_RESULT = f"""\
     DELETE FROM {DB_TABLE_NAME_RESULT} WHERE uuid == ?"""
 CMD_DELETE_RESULTS = f"""\
-    DELETE FROM {DB_TABLE_NAME_RESULT} WHERE schedule <= ?"""
+    DELETE FROM {DB_TABLE_NAME_RESULT} WHERE status == 1 AND ttl <= ?"""
 
 SQLITE_STRFTIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
@@ -230,7 +234,7 @@ class SQLiteInterface:
             self,
             uuid,
             status=0,
-            schedule=None,
+            ttl=None,
             error_message="",
             function_module="",
             function_name="",
@@ -246,11 +250,12 @@ class SQLiteInterface:
         data = {
             "uuid": uuid,
             "status": status,
-            "schedule": schedule,
+            "ttl": schedule,
             "error_message": error_message,
             "function_module": function_module,
             "function_name": function_name,
-            "function_arguments": pickle.dumps(function_arguments)
+            "function_arguments": pickle.dumps(function_arguments),
+            "function_result": pickle.dumps(None)
         }
         self._execute(CMD_STORE_RESULT, data)
 
