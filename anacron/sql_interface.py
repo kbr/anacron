@@ -125,15 +125,23 @@ class TaskResult(HybridNamespace):
 
     @property
     def result(self):
+        """shortcut to access the result."""
         return self.function_result
 
     @property
     def is_waiting(self):
+        """indicates task still waiting to get processed."""
         return self.status == TASK_STATUS_WAITING
 
     @property
     def is_ready(self):
+        """indicates task has been processed."""
         return self.status == TASK_STATUS_READY
+
+    @property
+    def has_error(self):
+        """indicates error_message is set."""
+        return self.status == TASK_STATUS_ERROR
 
 
 
@@ -300,6 +308,7 @@ class SQLiteInterface:
         cursor = self._execute(CMD_GET_RESULT_BY_UUID, (uuid,))
         row = cursor.fetchone()  # tuple of data or None
         if row:
+            # pylint: disable=attribute-defined-outside-init
             result = TaskResult(
                 dict(zip(RESULT_COLUMN_SEQUENCE.split(","), row)))
             result.function_result = pickle.loads(result.function_result)
@@ -318,7 +327,6 @@ class SQLiteInterface:
         ttl = self._get_result_ttl()
         parameters = status, function_result, error_message, ttl, uuid
         self._execute(CMD_UPDATE_RESULT, parameters)
-
 
 
 interface = SQLiteInterface(db_name=configuration.db_file)

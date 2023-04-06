@@ -160,23 +160,13 @@ class TestSQLInterface(unittest.TestCase):
         # test shortcut for function_result:
         assert result.result == answer
 
-
-
-#     def x_test_register_and_get_result(self):
-#         """
-#         Test story:
-#         1. register_result to store a function with arguments, but not
-#         the result that gets calculated later.
-#         2. calculate the result und find the registered result-entry by
-#         the uuid. The status should be 0 (False).
-#         3. update the result-entry with the result and an error-message.
-#         (in real use cases there would be the result or the
-#         error-message.)
-#         4. find the updated result-entry again by the uuid.
-#
-#         """
-#         uuid = uuid.uuid4().hex
-
+    def test_update_result_with_error(self):
+        message = "ValueError: more text here ..."
+        uuid_ = uuid.uuid4().hex
+        self.interface.register_result(test_adder, uuid=uuid_)
+        self.interface.update_result(uuid_, error_message=message)
+        result = self.interface.get_result_by_uuid(uuid_)
+        assert result.has_error is True
 
 
 # decorator testing includes database access.
