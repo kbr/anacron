@@ -53,39 +53,47 @@ CREATE TABLE IF NOT EXISTS {DB_TABLE_NAME_RESULT}
 (
     uuid TEXT PRIMARY KEY,
     status INTEGER,
-    schedule datetime,
-    error_message TEXT,
     function_module TEXT,
     function_name TEXT,
     function_arguments BLOB,
-    function_result BLOB
+    function_result BLOB,
+    error_message TEXT
 )
 """
 CMD_STORE_RESULT = f"""
-INSERT INTO {DB_TABLE_NAME_TASK} VALUES
+INSERT INTO {DB_TABLE_NAME_RESULT} VALUES
 (
     :uuid,
     :status,
-    :ttl,
-    :error_message,
     :function_module,
     :function_name,
-    :function_arguments
-    :function_result
+    :function_arguments,
+    :function_result,
+    :error_message
 )
 """
 RESULT_COLUMN_SEQUENCE =\
-    "rowid,uuid,ttl,error_message,"\
-    "function_module,function_name,function_arguments,function_result"
+    "rowid,uuid,status,function_module,function_name,"\
+    "function_arguments,function_result,error_message"
 CMD_GET_RESULT_BY_UUID = f"""\
     SELECT {RESULT_COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_RESULT}
     WHERE uuid == ?"""
-CMD_DELETE_RESULT = f"""\
-    DELETE FROM {DB_TABLE_NAME_RESULT} WHERE uuid == ?"""
-CMD_DELETE_RESULTS = f"""\
-    DELETE FROM {DB_TABLE_NAME_RESULT} WHERE status == 1 AND ttl <= ?"""
+CMD_UPDATE_RESULT = f"""
+    UPDATE {DB_TABLE_NAME_RESULT} SET
+        status = ?,
+        function_result = ?,
+        error_message = ?
+    WHERE uuid == ?"""
+# CMD_DELETE_RESULT = f"""\
+#     DELETE FROM {DB_TABLE_NAME_RESULT} WHERE uuid == ?"""
+# CMD_DELETE_RESULTS = f"""\
+#     DELETE FROM {DB_TABLE_NAME_RESULT} WHERE status == 1 AND ttl <= ?"""
 
 SQLITE_STRFTIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+
+TASK_STATUS_WAITING = 0
+TASK_STATUS_READY = 1
+TASK_STATUS_ERROR = 3
 
 
 class HybridNamespace(types.SimpleNamespace):
@@ -107,6 +115,21 @@ class HybridNamespace(types.SimpleNamespace):
         self.__dict__[name] = value
 
 
+class TaskResult(HybridNamespace):
+    """
+    Helper class to make task-results more handy.
+    """
+
+    @property
+    def is_waiting(self):
+        return self.status == TASK_STATUS_WAITING
+
+    @property
+    def is_ready(self):
+        return self.status == TASK_STATUS_READY
+
+
+
 class SQLiteInterface:
     """
     SQLite interface for application specific operations.
@@ -115,6 +138,7 @@ class SQLiteInterface:
     def __init__(self, db_name=":memory:"):
         self.db_name = db_name
         self._execute(CMD_CREATE_TASK_TABLE)
+        self._execute(CMD_CREATE_RESULT_TABLE)
 
     def _execute(self, cmd, parameters=()):
         """run a command with parameters."""
@@ -232,42 +256,54 @@ class SQLiteInterface:
     # -- result-methods ---
     def register_result(
             self,
+            func,
             uuid,
-            status=0,
-            ttl=None,
-            error_message="",
-            function_module="",
-            function_name="",
-            function_arguments=None,
+            args=(),
+            kwargs=None,
         ):
         """
         Register an entry in the result table of the database. The entry
         stores the uuid and the status `False` as zero `0` because the
         task is pending and no result available jet.
         """
-        if schedule is None:
-            schedule = datetime.datetime.now()
+        if not kwargs:
+            kwargs = {}
+        arguments = pickle.dumps((args, kwargs))
         data = {
             "uuid": uuid,
-            "status": status,
-            "ttl": schedule,
-            "error_message": error_message,
-            "function_module": function_module,
-            "function_name": function_name,
-            "function_arguments": pickle.dumps(function_arguments),
-            "function_result": pickle.dumps(None)
+            "status": TASK_STATUS_WAITING,
+            "function_module": func.__module__,
+            "function_name": func.__name__,
+            "function_arguments": arguments,
+            "function_result": pickle.dumps(None),
+            "error_message": "",
         }
         self._execute(CMD_STORE_RESULT, data)
 
     def get_result_by_uuid(self, uuid):
         """
-        Return a dataset (as HybridNamespace) or None.
+        Return a dataset (as TaskResult) or None.
         """
-        cursor = self._execute(CMD_GET_RESULT_BY_UUID, uuid)
+        cursor = self._execute(CMD_GET_RESULT_BY_UUID, (uuid,))
         row = cursor.fetchone()  # tuple of data or None
-        # TODO: build HybridNamespace in case of data
-        return row
+        if row:
+            result = TaskResult(
+                dict(zip(RESULT_COLUMN_SEQUENCE.split(","), row)))
+            result.function_result = pickle.loads(result.function_result)
+            result.function_arguments = pickle.loads(result.function_arguments)
+        else:
+            result = None
+        return result
 
+    def update_result(self, uuid, result=None, error_message=""):
+        """
+        Updates the result-entry with the given `uuid` to status 1|2 and
+        stores the `result` or `error_message`.
+        """
+        status = TASK_STATUS_ERROR if error_message else TASK_STATUS_READY
+        function_result = pickle.dumps(result)
+        parameters = status, function_result, error_message, uuid
+        self._execute(CMD_UPDATE_RESULT, parameters)
 
 
 

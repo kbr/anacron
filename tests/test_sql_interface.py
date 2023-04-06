@@ -135,19 +135,44 @@ class TestSQLInterface(unittest.TestCase):
         entry = self.interface.get_tasks_by_signature(test_adder)[0]
         assert entry["schedule"] == next_schedule
 
-    def x_test_register_and_get_result(self):
-        """
-        Test story:
-        1. register_result to store a function with arguments, but not
-        the result that gets calculated later.
-        2. calculate the result und find the registered result-entry by
-        the uuid. The status should be 0 (False).
-        3. update the result-entry with the result and an error-message.
-        (in real use cases there would be the result or the
-        error-message.)
-        4. find the updated result-entry again by the uuid.
+    def test_result_by_uuid_no_result(self):
+        # result should be None if no entry found
+        uuid_ = uuid.uuid4().hex
+        result = self.interface.get_result_by_uuid(uuid_)
+        assert result is None
 
-        """
+    def test_result_by_uuid_result_registered(self):
+        uuid_ = uuid.uuid4().hex
+        self.interface.register_result(test_adder, uuid=uuid_)
+        result = self.interface.get_result_by_uuid(uuid_)
+        # return a TaskResult instance:
+        assert result is not None
+        assert result.is_waiting is True
+
+    def test_update_result_no_error(self):
+        answer = 42
+        uuid_ = uuid.uuid4().hex
+        self.interface.register_result(test_adder, uuid=uuid_)
+        self.interface.update_result(uuid_, result=answer)
+        result = self.interface.get_result_by_uuid(uuid_)
+        assert result.is_ready is True
+        assert result.function_result == answer
+
+
+
+#     def x_test_register_and_get_result(self):
+#         """
+#         Test story:
+#         1. register_result to store a function with arguments, but not
+#         the result that gets calculated later.
+#         2. calculate the result und find the registered result-entry by
+#         the uuid. The status should be 0 (False).
+#         3. update the result-entry with the result and an error-message.
+#         (in real use cases there would be the result or the
+#         error-message.)
+#         4. find the updated result-entry again by the uuid.
+#
+#         """
 #         uuid = uuid.uuid4().hex
 
 
