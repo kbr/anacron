@@ -92,11 +92,32 @@ CMD_UPDATE_RESULT = f"""
 # CMD_DELETE_RESULTS = f"""\
 #     DELETE FROM {DB_TABLE_NAME_RESULT} WHERE status == 1 AND ttl <= ?"""
 
-SQLITE_STRFTIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 TASK_STATUS_WAITING = 0
 TASK_STATUS_READY = 1
 TASK_STATUS_ERROR = 3
+
+
+# sqlite3 default adapters and converters deprecated as of Python 3.12:
+
+def datetime_adapter(value):
+    """
+    Gets a python datetime-instance and returns an ISO 8601 formated
+    string for sqlite3 storage.
+    """
+    return value.isoformat()
+
+
+def datetime_converter(value):
+    """
+    Gets an ISO 8601 formated byte-string (from sqlite3) and returns a
+    python datetime datatype.
+    """
+    return datetime.datetime.fromisoformat(value.decode())
+
+
+sqlite3.register_adapter(datetime.datetime, datetime_adapter)
+sqlite3.register_converter("datetime", datetime_converter)
 
 
 class HybridNamespace(types.SimpleNamespace):
@@ -157,7 +178,10 @@ class SQLiteInterface:
 
     def _execute(self, cmd, parameters=()):
         """run a command with parameters."""
-        con = sqlite3.connect(self.db_name)
+        con = sqlite3.connect(
+            self.db_name,
+            detect_types=sqlite3.PARSE_DECLTYPES
+        )
         with con:
             return con.execute(cmd, parameters)
 
@@ -195,10 +219,6 @@ class SQLiteInterface:
                     TASK_COLUMN_SEQUENCE.strip().split(",")[:-1]
                 )
             }
-            # convert sqlite3 stores datetime as string
-            data["schedule"] = datetime.datetime.strptime(
-                data["schedule"], SQLITE_STRFTIME_FORMAT
-            )
             data["args"] = args
             data["kwargs"] = kwargs
             return HybridNamespace(data)
