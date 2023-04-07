@@ -4,4 +4,13 @@ Changes
 development
 -----------
 
-* initial release
+
+0.2.dev
+-------
+
+* modified readme
+
+0.1.dev
+-------
+
+* initial upload
