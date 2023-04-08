@@ -12,7 +12,7 @@ def test(session):
 
 
 @nox.session
-def pylint(session):
+def lint(session):
     session.install("-e", ".")
     session.install("pylint")
     session.run("pylint", "anacron")
