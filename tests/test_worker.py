@@ -30,36 +30,3 @@ class TestWorkerStartStop(unittest.TestCase):
         process.terminate()
         time.sleep(0.1)
         assert process.poll() is not None
-
-
-# class TestWorkerStartStopViaEngine(unittest.TestCase):
-#
-#     def test_start_worker_via_engine(self):
-#         configuration.configuration.is_active = True
-#         engine_ = engine.Engine()
-#         result = engine_.start()
-#         assert result is True
-#         assert engine_.monitor is not None
-#         engine_.stop()
-#         configuration.configuration.is_active = False
-#
-#
-# def add_test(a, b):
-#     return a + b
-#
-#
-# class TestWorker(unittest.TestCase):
-#
-#     def setUp(self):
-#         self.interface = sql_interface.SQLiteInterface(db_name=TEST_DB_NAME)
-#         self.worker = worker.Worker()
-#
-#     def tearDown(self):
-#         pathlib.Path(self.interface.db_name).unlink()
-#
-#     def test_process_task(self):
-#         self.interface.register_callable(add_test, args=(2, 40))
-#         task = self.interface.get_tasks_on_due()[0]
-#         self.worker.process_task(task)
-#         assert self.worker.result == 42
-#
