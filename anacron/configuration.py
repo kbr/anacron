@@ -17,7 +17,7 @@ else:
     DJANGO_IS_INSTALLED = True
 
 DB_FILE_NAME = "anacron.db"
-SEMAPHORE_FILE_NAME = "anacron.flag"
+SEMAPHORE_FILE_NAME = "anacron.semaphore"
 MONITOR_IDLE_TIME = 1.0  # seconds
 WORKER_IDLE_TIME = 1.0  # seconds
 RESULT_TTL = 30  # storage time for results in minutes
@@ -82,8 +82,7 @@ class Configuration:
             home_dir = self.cwd
             prefix = None
         else:
-            cwd = self.cwd.as_posix()
-            prefix = cwd.replace("/", "_")
+            prefix = self.cwd.as_posix().replace("/", "_")
         anacron_dir = home_dir / ".anacron"
         if prefix:
             anacron_dir = anacron_dir / prefix
