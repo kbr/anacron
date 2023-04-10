@@ -7,6 +7,7 @@ adapt them from web-frameworks (currently django).
 
 import datetime
 import pathlib
+import time
 
 try:
     from django.conf import settings
@@ -19,7 +20,9 @@ DB_FILE_NAME = "anacron.db"
 SEMAPHORE_FILE_NAME = "anacron.flag"
 MONITOR_IDLE_TIME = 1.0  # seconds
 WORKER_IDLE_TIME = 1.0  # seconds
-RESULT_TTL = 30  # storage time to live for results in minutes
+RESULT_TTL = 30  # storage time for results in minutes
+AUTOCONFIGURATION_TIMEOUT = 10  # seconds
+AUTOCONFIGURATION_IDLE_TIME = 0.1  # seconds
 
 
 class Configuration:
@@ -33,9 +36,41 @@ class Configuration:
         self.monitor_idle_time = MONITOR_IDLE_TIME
         self.worker_idle_time = WORKER_IDLE_TIME
         self.result_ttl = datetime.timedelta(minutes=RESULT_TTL)
-        self.is_active = False
+        self._is_active = None
+
+    @property
+    def is_active(self):
+        """
+        indicator whether anancron runs in the background
+        """
+        if self._is_active is None:
+            if DJANGO_IS_INSTALLED:
+                self._is_active = not settings.DEBUG
+        return self._is_active
+
+    @is_active.setter
+    def is_active(self, value):
+        # property-setter for framework independent testing
+        self._is_active = value
+
+    def wait_for_autoconfiguration(self):
+        """
+        This method is designed to get called from a separate thread,
+        so, in case of django, it can wait until the the django-settings
+        are loaded without blocking the application. The method will
+        return, when the application is ready to support the i.e.
+        `is_active` attribute.
+        """
         if DJANGO_IS_INSTALLED:
-            self.is_active = not settings.DEBUG
+            start = time.monotonic()
+            while True:
+                if settings.configured:
+                    break
+                if time.monotonic() - start > AUTOCONFIGURATION_TIMEOUT:
+                    # on timeout anacron will not start
+                    self.is_active = False
+                    break
+                time.sleep(AUTOCONFIGURATION_IDLE_TIME)
 
     def _get_db_path(self):
         """
@@ -65,7 +100,7 @@ class Configuration:
     @property
     def db_file(self):
         """
-        Provides the path to the semaphore-file.
+        Provides the path to the database-file.
         """
         fname = f"{self._get_filename_prefix()}_{self.db_filename}"
         return self.db_path / fname
@@ -82,10 +117,7 @@ class Configuration:
     def cwd(self):
         """
         Provides the current working directory.
-        In case of django this is the BASE_DIR of the project.
         """
-        if DJANGO_IS_INSTALLED:
-            return settings.BASE_DIR
         return pathlib.Path.cwd()
 
 

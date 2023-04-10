@@ -27,19 +27,16 @@ def cron(crontab=DEFAULT_CRONTAB):
 
     """
     def wrapper(func):
-        if configuration.is_active:
-            scheduler = CronScheduler(crontab=crontab)
-            schedule = scheduler.get_next_schedule()
-            for entry in interface.get_tasks_by_signature(func):
-                # there should be just a single entry.
-                # however iterate over all entries and
-                # test for a non-empty crontab-string.
-                if entry["crontab"]:
-                    # delete existing cronjob(s) of the same callable
-                    interface.delete_callable(entry)
-            interface.register_callable(
-                func, schedule=schedule, crontab=crontab
-            )
+        scheduler = CronScheduler(crontab=crontab)
+        schedule = scheduler.get_next_schedule()
+        for entry in interface.get_tasks_by_signature(func):
+            # there should be just a single entry.
+            # however iterate over all entries and
+            # test for a non-empty crontab-string.
+            if entry["crontab"]:
+                # delete existing cronjob(s) of the same callable
+                interface.delete_callable(entry)
+        interface.register_callable(func, schedule=schedule, crontab=crontab)
         return func
     return wrapper
 

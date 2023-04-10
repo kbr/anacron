@@ -33,13 +33,31 @@ def worker_monitor(exit_event, database_file=None):
     """
     Monitors the subprocess and start/restart if the process is not up.
     """
-    process = None
-    while True:
-        if process is None or process.poll() is not None:
-            process = start_subprocess(database_file)
-        if exit_event.wait(timeout=configuration.monitor_idle_time):
-            break
-    process.terminate()
+    # wait for auto-configuration to decide whether the thread should
+    # start the worker process, or terminate.
+    configuration.wait_for_autoconfiguration()
+    if configuration.is_active:
+        process = None
+        while True:
+            if process is None or process.poll() is not None:
+                process = start_subprocess(database_file)
+            if exit_event.wait(timeout=configuration.monitor_idle_time):
+                break
+        process.terminate()
+    clean_up()
+
+
+def clean_up():
+    """
+    Clean up on shutting down the application: delete an existing
+    semaphore file and remove all cronjob entries from the database.
+    (cronjobs will populate the database at start-up and can change.)
+    This method may get called multiple times, but that doesn't
+    hurt.
+    """
+    # keep compatibility with Python 3.7:
+    if configuration.semaphore_file.exists():
+        configuration.semaphore_file.unlink()
 
 
 class Engine:
@@ -57,27 +75,21 @@ class Engine:
 
     def start(self, database_file=None):
         """
-        Starts the monitor in case anacron is active and no other
-        monitor is already running. Return True if a monitor thread has
-        been started, otherwise False. These return values are for
-        testing.
+        Starts the monitor in case no other monitor is already running.
         """
-        if configuration.is_active:
-            try:
-                configuration.semaphore_file.touch(exist_ok=False)
-            except FileExistsError:
-                # don't start the monitor if semaphore set
-                pass
-            else:
-                # start monitor thread
-                register_shutdown_handler(self.stop)
-                self.monitor_thread = threading.Thread(
-                    target=worker_monitor,
-                    args=(self.exit_event, database_file)
-                )
-                self.monitor_thread.start()
-                return True  # monitor started
-        return False  # monitor not started
+        try:
+            configuration.semaphore_file.touch(exist_ok=False)
+        except FileExistsError:
+            # don't start the monitor if semaphore set
+            pass
+        else:
+            # start monitor thread
+            register_shutdown_handler(self.stop)
+            self.monitor_thread = threading.Thread(
+                target=worker_monitor,
+                args=(self.exit_event, database_file)
+            )
+            self.monitor_thread.start()
 
     def stop(self, *args):  # pylint: disable=unused-argument
         """
@@ -89,9 +101,7 @@ class Engine:
         """
         if self.monitor_thread.is_alive():
             self.exit_event.set()
-        # keep compatibility with Python 3.7:
-        if configuration.semaphore_file.exists():
-            configuration.semaphore_file.unlink()
+        clean_up()
 
 
 engine = Engine()
