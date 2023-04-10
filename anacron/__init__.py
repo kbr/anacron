@@ -4,6 +4,7 @@ anacron:
 simple background task handling with no dependencies.
 """
 
+from .configuration import activate
 from .decorators import (
     cron,
     delegate,
@@ -11,7 +12,7 @@ from .decorators import (
 from .engine import Engine
 
 
-__all__ = ["cron", "delegate"]
+__all__ = ["activate", "cron", "delegate"]
 __version__ = "0.2.dev"
 
 

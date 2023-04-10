@@ -31,51 +31,47 @@ class Configuration:
     for better testing.
     """
     def __init__(self, db_filename=DB_FILE_NAME):
-        self.db_path = self._get_db_path()
+        self.anacron_path = self._get_anacron_directory()
         self.db_filename = db_filename
         self.monitor_idle_time = MONITOR_IDLE_TIME
         self.worker_idle_time = WORKER_IDLE_TIME
         self.result_ttl = datetime.timedelta(minutes=RESULT_TTL)
-        self._is_active = None
-
-    @property
-    def is_active(self):
-        """
-        indicator whether anancron runs in the background
-        """
-        if self._is_active is None:
-            if DJANGO_IS_INSTALLED:
-                self._is_active = not settings.DEBUG
-        return self._is_active
-
-    @is_active.setter
-    def is_active(self, value):
-        # property-setter for framework independent testing
-        self._is_active = value
+        self.is_active = None
 
     def wait_for_autoconfiguration(self):
         """
         This method is designed to get called from a separate thread,
         so, in case of django, it can wait until the the django-settings
         are loaded without blocking the application. The method will
-        return, when the application is ready to support the i.e.
-        `is_active` attribute.
+        return, when the application is ready to support the
+        project-specific settings.
         """
-        if DJANGO_IS_INSTALLED:
+        if DJANGO_IS_INSTALLED and self.is_active is None:
             start = time.monotonic()
             while True:
                 if settings.configured:
+                    try:
+                        self.is_active = not settings.DEBUG
+                    except AttributeError:
+                        # this is a django configuration error
+                        pass
                     break
                 if time.monotonic() - start > AUTOCONFIGURATION_TIMEOUT:
                     # on timeout anacron will not start
-                    self.is_active = False
                     break
                 time.sleep(AUTOCONFIGURATION_IDLE_TIME)
+        if self.is_active is None:
+            # default is False
+            self.is_active = False
 
-    def _get_db_path(self):
+    def _get_anacron_directory(self):
         """
-        Return the directory as a Path object, where the anacron
-        database (and also the test-database) get stored.
+        Return the directory as a Path object, where the anacron files
+        are stored. These files are the database, the semaphore file and
+        an optional configuration files. This directory is typically
+
+            "~.anacron/cwd_prefix/"
+
         """
         try:
             home_dir = pathlib.Path().home()
@@ -84,34 +80,29 @@ class Configuration:
             # directory. Depending on the application .gitignore
             # should get extended with a ".anacron/*" entry.
             home_dir = self.cwd
-        home_dir = home_dir / ".anacron"
-        home_dir.mkdir(exist_ok=True)
-        return home_dir
-
-    @staticmethod
-    def _get_filename_prefix():
-        """
-        Return a prefix for files in the .anacron directory to support
-        multiple running applications.
-        """
-        cwd = pathlib.Path().cwd().as_posix()
-        return cwd.replace("/", "_")
+            prefix = None
+        else:
+            cwd = self.cwd.as_posix()
+            prefix = cwd.replace("/", "_")
+        anacron_dir = home_dir / ".anacron"
+        if prefix:
+            anacron_dir = anacron_dir / prefix
+        anacron_dir.mkdir(exist_ok=True)
+        return anacron_dir
 
     @property
     def db_file(self):
         """
         Provides the path to the database-file.
         """
-        fname = f"{self._get_filename_prefix()}_{self.db_filename}"
-        return self.db_path / fname
+        return self.anacron_path / self.db_filename
 
     @property
     def semaphore_file(self):
         """
         Provides the path to the semaphore-file.
         """
-        fname = f"{self._get_filename_prefix()}_{SEMAPHORE_FILE_NAME}"
-        return self.db_path / fname
+        return self.anacron_path / SEMAPHORE_FILE_NAME
 
     @property
     def cwd(self):
@@ -119,6 +110,14 @@ class Configuration:
         Provides the current working directory.
         """
         return pathlib.Path.cwd()
+
+
+def activate(state=True):
+    """
+    Activate or deactivate anacron explicitly.
+    This overrides the auto-configuration.
+    """
+    configuration.is_activate = state
 
 
 configuration = Configuration()
