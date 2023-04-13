@@ -20,7 +20,7 @@ from anacron import engine
 from anacron import sql_interface
 
 
-TEST_DB_NAME = "test.db"
+TEST_DB_NAME = configuration.configuration.anacron_path / "test.db"
 
 
 class TestEngine(unittest.TestCase):

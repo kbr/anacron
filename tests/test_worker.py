@@ -15,7 +15,7 @@ from anacron import sql_interface
 from anacron import worker
 
 
-TEST_DB_NAME = "test.db"
+# TEST_DB_NAME = configuration.configuration.anacron_path / "test.db"
 
 
 class TestWorkerStartStop(unittest.TestCase):
