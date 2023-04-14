@@ -64,7 +64,6 @@ def clean_up():
     interface.delete_cronjobs()
 
 
-
 class Engine:
     """
     The Engine is the entry-point for anacron. On import an Entry

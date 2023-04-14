@@ -63,6 +63,12 @@ CREATE TABLE IF NOT EXISTS {DB_TABLE_NAME_RESULT}
     ttl datetime
 )
 """
+
+# Status codes are needed for the result-entries:
+TASK_STATUS_WAITING = 0
+TASK_STATUS_READY = 1
+TASK_STATUS_ERROR = 3
+
 CMD_STORE_RESULT = f"""
 INSERT INTO {DB_TABLE_NAME_RESULT} VALUES
 (
@@ -91,13 +97,10 @@ CMD_UPDATE_RESULT = f"""
     WHERE uuid == ?"""
 # CMD_DELETE_RESULT = f"""\
 #     DELETE FROM {DB_TABLE_NAME_RESULT} WHERE uuid == ?"""
-# CMD_DELETE_RESULTS = f"""\
-#     DELETE FROM {DB_TABLE_NAME_RESULT} WHERE status == 1 AND ttl <= ?"""
-
-
-TASK_STATUS_WAITING = 0
-TASK_STATUS_READY = 1
-TASK_STATUS_ERROR = 3
+CMD_DELETE_OUTDATED_RESULTS = f"""\
+    DELETE FROM {DB_TABLE_NAME_RESULT}
+    WHERE status == {TASK_STATUS_READY} AND ttl <= ?"""
+CMD_COUNT_RESULTS = f"SELECT COUNT(*) FROM {DB_TABLE_NAME_RESULT}"
 
 
 # sqlite3 default adapters and converters deprecated as of Python 3.12:
@@ -186,6 +189,24 @@ class SQLiteInterface:
         )
         with con:
             return con.execute(cmd, parameters)
+
+    def _count_table_entries(self, table_name):
+        """
+        Helper function to count the number of entries in the given
+        table. Returns a numeric value. Raises a ValueError in case the
+        table_name is unknown.
+        """
+        if table_name == DB_TABLE_NAME_TASK:
+            cmd = CMD_COUNT_TASKS
+        elif table_name == DB_TABLE_NAME_RESULT:
+            cmd = CMD_COUNT_RESULTS
+        else:
+            message = f"unknown table: {table_name}"
+            raise ValueError(message)
+        cursor = self._execute(cmd)
+        number_of_rows = cursor.fetchone()[0]
+        return number_of_rows
+
 
     # -- task-methods ---
 
@@ -302,9 +323,8 @@ class SQLiteInterface:
         Returns the number of rows in the task-table, therefore
         providing the number of tasks stored in the database.
         """
-        cursor = self._execute(CMD_COUNT_TASKS)
-        number_of_rows = cursor.fetchone()[0]
-        return number_of_rows
+        return self._count_table_entries(DB_TABLE_NAME_TASK)
+
 
     # -- result-methods ---
 
@@ -317,6 +337,7 @@ class SQLiteInterface:
             func,
             uuid,
             args=(),
+            status=TASK_STATUS_WAITING,
             kwargs=None,
         ):
         """
@@ -329,7 +350,7 @@ class SQLiteInterface:
         arguments = pickle.dumps((args, kwargs))
         data = {
             "uuid": uuid,
-            "status": TASK_STATUS_WAITING,
+            "status": status,
             "function_module": func.__module__,
             "function_name": func.__name__,
             "function_arguments": arguments,
@@ -365,6 +386,13 @@ class SQLiteInterface:
         ttl = self._get_result_ttl()
         parameters = status, function_result, error_message, ttl, uuid
         self._execute(CMD_UPDATE_RESULT, parameters)
+
+    def count_results(self):
+        """
+        Returns the number of rows in the task-table, therefore
+        providing the number of tasks stored in the database.
+        """
+        return self._count_table_entries(DB_TABLE_NAME_RESULT)
 
 
 interface = SQLiteInterface(db_name=configuration.db_file)

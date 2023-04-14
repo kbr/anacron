@@ -34,9 +34,11 @@ class TestSQLInterface(unittest.TestCase):
 
     def setUp(self):
         self.interface = sql_interface.SQLiteInterface(db_name=TEST_DB_NAME)
+        self._result_ttl = configuration.configuration.result_ttl
 
     def tearDown(self):
         pathlib.Path(self.interface.db_name).unlink()
+        configuration.configuration.result_ttl = self._result_ttl
 
     def test_storage(self):
         entries = self.interface.get_tasks_on_due()
@@ -168,6 +170,16 @@ class TestSQLInterface(unittest.TestCase):
         self.interface.update_result(uuid_, error_message=message)
         result = self.interface.get_result_by_uuid(uuid_)
         assert result.has_error is True
+
+    def test_count_results(self):
+        # register three results.
+        # check whether there are three entries in the database
+        self.interface.register_result(test_callable, uuid.uuid4().hex)
+        self.interface.register_result(test_adder, uuid.uuid4().hex)
+        self.interface.register_result(test_multiply, uuid.uuid4().hex)
+        entries = self.interface.count_results()
+        assert entries == 3
+
 
     def test_count_tasks(self):
         # register three callables, two as cronjobs.
