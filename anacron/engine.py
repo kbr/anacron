@@ -9,6 +9,7 @@ import sys
 import threading
 
 from .configuration import configuration
+from .sql_interface import interface
 from .utils import register_shutdown_handler
 
 
@@ -55,9 +56,13 @@ def clean_up():
     This method may get called multiple times, but that doesn't
     hurt.
     """
-    # keep compatibility with Python 3.7:
+    # keep compatibility with Python 3.7 for file deletion:
     if configuration.semaphore_file.exists():
         configuration.semaphore_file.unlink()
+    # delete cronjobs on shutdown because on next startup
+    # the callables and according crontabs may have changed
+    interface.delete_cronjobs()
+
 
 
 class Engine:

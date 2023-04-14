@@ -169,6 +169,32 @@ class TestSQLInterface(unittest.TestCase):
         result = self.interface.get_result_by_uuid(uuid_)
         assert result.has_error is True
 
+    def test_count_tasks(self):
+        # register three callables, two as cronjobs.
+        # check whether there are three entries in the database
+        self.interface.register_callable(test_callable)
+        self.interface.register_callable(test_adder, crontab="* * * * *")
+        self.interface.register_callable(test_multiply, crontab="* * * * *")
+        entries = self.interface.count_tasks()
+        assert entries == 3
+
+    def test_delete_cronjobs(self):
+        # register three callables, two as cronjobs.
+        # delete the cronjobs and check that a single item in left
+        # in the database.
+        self.interface.register_callable(test_callable)
+        self.interface.register_callable(test_adder, crontab="* * * * *")
+        self.interface.register_callable(test_multiply, crontab="* * * * *")
+        self.interface.delete_cronjobs()
+        entries = self.interface.count_tasks()
+        assert entries == 1
+        # remaining entry should be the test_callable
+        entry = self.interface.get_tasks_on_due()[0]
+        assert entry.function_module == test_callable.__module__
+        assert entry.function_name == test_callable.__name__
+
+
+
 
 # decorator testing includes database access.
 # for easier testing decorator tests are included here.

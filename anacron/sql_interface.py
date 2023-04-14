@@ -46,6 +46,8 @@ CMD_GET_CALLABLES_ON_DUE = f"""\
 CMD_UPDATE_SCHEDULE = f"\
     UPDATE {DB_TABLE_NAME_TASK} SET schedule = ? WHERE rowid == ?"
 CMD_DELETE_CALLABLE = f"DELETE FROM {DB_TABLE_NAME_TASK} WHERE rowid == ?"
+CMD_DELETE_CRON_CALLABLES = f"DELETE FROM {DB_TABLE_NAME_TASK} WHERE crontab <> ''"
+CMD_COUNT_TASKS = f"SELECT COUNT(*) FROM {DB_TABLE_NAME_TASK}"
 
 DB_TABLE_NAME_RESULT = "result"
 CMD_CREATE_RESULT_TABLE = f"""
@@ -186,6 +188,7 @@ class SQLiteInterface:
             return con.execute(cmd, parameters)
 
     # -- task-methods ---
+
     @staticmethod
     def _fetch_all_callable_entries(cursor):
         """
@@ -281,12 +284,27 @@ class SQLiteInterface:
         """
         self._execute(CMD_DELETE_CALLABLE, [entry["rowid"]])
 
+    def delete_cronjobs(self):
+        """
+        Delete all cronjobs from the task-table.
+        """
+        self._execute(CMD_DELETE_CRON_CALLABLES)
+
     def update_schedule(self, rowid, schedule):
         """
         Update the `schedule` of the table entry with the given `rowid`.
         """
         parameters = schedule, rowid
         self._execute(CMD_UPDATE_SCHEDULE, parameters)
+
+    def count_tasks(self):
+        """
+        Returns the number of rows in the task-table, therefore
+        providing the number of tasks stored in the database.
+        """
+        cursor = self._execute(CMD_COUNT_TASKS)
+        number_of_rows = cursor.fetchone()[0]
+        return number_of_rows
 
     # -- result-methods ---
 
