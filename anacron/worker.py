@@ -39,14 +39,16 @@ class Worker:
         register_shutdown_handler(self.terminate)
         while self.active:
             if not self.handle_tasks():
+                # nothing to do, check for results to delete:
+                interface.delete_outdated_results()
                 time.sleep(configuration.worker_idle_time)
 
     def handle_tasks(self):
         """
         Checks for tasks and process them. If there are no tasks to
-        handle the method returns False indication that the main loop
+        handle the method return `False` indicating that the main loop
         can switch to idle state. If  tasks have been handled, the
-        method returns True to indicate that meanwhile more tasks may be
+        method return `True` to indicate that meanwhile more tasks may be
         waiting.
         """
         tasks = interface.get_tasks_on_due()

@@ -207,8 +207,8 @@ class TestSQLInterface(unittest.TestCase):
         # register a waiting result, a regular result, an outdated result
         # and an outdated result with error state.
         # After deleting the outdated results the entries should be
-        # decremented by one.
-        # waiting:
+        # decreased by one.
+        # the waiting result:
         self.interface.register_result(test_callable, uuid.uuid4().hex)
         # the regular result (not outdated)
         self.interface.register_result(
