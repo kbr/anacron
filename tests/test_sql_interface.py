@@ -171,6 +171,71 @@ class TestSQLInterface(unittest.TestCase):
         result = self.interface.get_result_by_uuid(uuid_)
         assert result.has_error is True
 
+    def test_do_not_delete_waiting_results(self):
+        configuration.configuration.result_ttl = datetime.timedelta()
+        self.interface.register_result(test_callable, uuid.uuid4().hex)
+        self.interface.register_result(test_adder, uuid.uuid4().hex)
+        entries = self.interface.count_results()
+        assert entries == 2
+
+    def test_delete_outdated_results(self):
+        # register two results, one of them outdated.
+        uuid_ = uuid.uuid4().hex
+        self.interface.register_result(
+            test_callable,
+            uuid_,
+            status=sql_interface.TASK_STATUS_READY
+        )
+        configuration.configuration.result_ttl = datetime.timedelta()
+        # this result is outdated
+        self.interface.register_result(
+            test_adder,
+            uuid.uuid4().hex,
+            status=sql_interface.TASK_STATUS_READY
+        )
+        entries = self.interface.count_results()
+        assert entries == 2
+        self.interface.delete_outdated_results()
+        entries = self.interface.count_results()
+        assert entries == 1
+        # the remaining entry should be the `test_callable` result
+        entry = self.interface.get_result_by_uuid(uuid_)
+        assert entry.function_module == test_callable.__module__
+        assert entry.function_name == test_callable.__name__
+
+    def test_delete_mixed_results(self):
+        # register a waiting result, a regular result, an outdated result
+        # and an outdated result with error state.
+        # After deleting the outdated results the entries should be
+        # decremented by one.
+        # waiting:
+        self.interface.register_result(test_callable, uuid.uuid4().hex)
+        # the regular result (not outdated)
+        self.interface.register_result(
+            test_callable,
+            uuid.uuid4().hex,
+            status=sql_interface.TASK_STATUS_READY
+        )
+        # set ttl to 0:
+        configuration.configuration.result_ttl = datetime.timedelta()
+        # the outdated result:
+        self.interface.register_result(
+            test_callable,
+            uuid.uuid4().hex,
+            status=sql_interface.TASK_STATUS_READY
+        )
+        # the outdated result in error state:
+        self.interface.register_result(
+            test_callable,
+            uuid.uuid4().hex,
+            status=sql_interface.TASK_STATUS_ERROR
+        )
+        # test for decreasing entries:
+        entries = self.interface.count_results()
+        self.interface.delete_outdated_results()
+        remaining_entries = self.interface.count_results()
+        assert entries - remaining_entries == 1
+
     def test_count_results(self):
         # register three results.
         # check whether there are three entries in the database
@@ -179,7 +244,6 @@ class TestSQLInterface(unittest.TestCase):
         self.interface.register_result(test_multiply, uuid.uuid4().hex)
         entries = self.interface.count_results()
         assert entries == 3
-
 
     def test_count_tasks(self):
         # register three callables, two as cronjobs.

@@ -394,5 +394,13 @@ class SQLiteInterface:
         """
         return self._count_table_entries(DB_TABLE_NAME_RESULT)
 
+    def delete_outdated_results(self):
+        """
+        Deletes results with status TASK_STATUS_READY that have exceeded
+        the time to live (ttl).
+        """
+        now = datetime.datetime.now()
+        self._execute(CMD_DELETE_OUTDATED_RESULTS, (now,))
+
 
 interface = SQLiteInterface(db_name=configuration.db_file)
