@@ -21,7 +21,7 @@ def lint(session):
 @nox.session(python=PYTHON_DEVELOPMENT_VERSION)
 def build(session):
     session.install("-e", ".")
-    session.run("python", "setup.py", "sdist")
+    session.run("python", "setup.py", "sdist", "bdist_wheel")
 
 
 @nox.session(name="upload-to-pypi", python=PYTHON_DEVELOPMENT_VERSION)
