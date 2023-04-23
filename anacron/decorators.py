@@ -13,7 +13,8 @@ from .sql_interface import interface
 DEFAULT_CRONTAB = "* * * * *"
 
 
-def cron(crontab=DEFAULT_CRONTAB):
+def cron(minutes=None, hours=None, dow=None, months=None, dom=None,
+         crontab=DEFAULT_CRONTAB):
     """
     Decorator function for a cronjob.
 
@@ -27,7 +28,14 @@ def cron(crontab=DEFAULT_CRONTAB):
 
     """
     def wrapper(func):
-        scheduler = CronScheduler(crontab=crontab)
+        scheduler = CronScheduler(
+            minutes=minutes,
+            hours=hours,
+            dow=dow,
+            months=months,
+            dom=dom,
+            crontab=crontab
+        )
         schedule = scheduler.get_next_schedule()
         for entry in interface.get_tasks_by_signature(func):
             # there should be just a single entry.
