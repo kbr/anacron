@@ -12,6 +12,33 @@ from datetime import timedelta
 import re
 
 
+class Sequencer:
+    """
+    Data-descriptor for runtime type-checking and -conversion.
+    """
+    def __init__(self):
+        self.name = None
+        self.storage = None
+
+    def __set_name__(self, cls, name):
+        self.name = name
+        self.storage = f"_{name}"
+
+    def __get__(self, obj, objtype=None):
+        return getattr(obj, self.storage)
+
+    def __set__(self, obj, value):
+        if value is None:
+            pass
+        elif isinstance(value, int):
+            value = [value]
+        elif not isinstance(value, (tuple, list)):
+            msg = f"Argument '{self.name}' must be of type int, tuple or list, "\
+                  f"got {type(value)} instead."
+            raise TypeError(msg)
+        setattr(obj, self.storage, value)
+
+
 class CronScheduler:
     """
     Schedules a cron task.
@@ -21,6 +48,13 @@ class CronScheduler:
     cs = CronScheduler()
     next_schedule = cs.get_next_schedule()
     """
+
+    minutes = Sequencer()
+    hours = Sequencer()
+    dow = Sequencer()
+    month = Sequencer()
+    dom = Sequencer()
+
     def __init__(self, last_schedule=None, minutes=None, hours=None,
                  dow=None, months=None, dom=None, crontab=None):
         """
