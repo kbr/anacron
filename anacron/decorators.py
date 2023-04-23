@@ -15,7 +15,7 @@ DEFAULT_CRONTAB = "* * * * *"
 
 # pylint: disable=too-many-arguments
 def cron(minutes=None, hours=None, dow=None, months=None, dom=None,
-         crontab=DEFAULT_CRONTAB):
+         crontab=None):
     """
     Decorator function for a cronjob.
 
