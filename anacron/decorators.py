@@ -13,6 +13,7 @@ from .sql_interface import interface
 DEFAULT_CRONTAB = "* * * * *"
 
 
+# pylint: disable=too-many-arguments
 def cron(minutes=None, hours=None, dow=None, months=None, dom=None,
          crontab=DEFAULT_CRONTAB):
     """
@@ -27,6 +28,10 @@ def cron(minutes=None, hours=None, dow=None, months=None, dom=None,
             # do periodic stuff here ...
 
     """
+    # set crontab to default if no other arguments are given:
+    if not any(locals().values()):
+        crontab = DEFAULT_CRONTAB
+
     def wrapper(func):
         scheduler = CronScheduler(
             minutes=minutes,
@@ -46,6 +51,7 @@ def cron(minutes=None, hours=None, dow=None, months=None, dom=None,
                 interface.delete_callable(entry)
         interface.register_callable(func, schedule=schedule, crontab=crontab)
         return func
+
     return wrapper
 
 
