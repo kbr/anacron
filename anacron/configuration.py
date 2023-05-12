@@ -154,13 +154,4 @@ class Configuration:
         return pathlib.Path.cwd()
 
 
-def activate(state=True):
-    """
-    Activate or deactivate anacron explicitly.
-    This overrides the auto-configuration.
-    """
-    # pylint: disable=attribute-defined-outside-init
-    configuration.is_activate = state
-
-
 configuration = Configuration()
