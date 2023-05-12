@@ -45,7 +45,18 @@ def worker_monitor(exit_event, database_file=None):
             if exit_event.wait(timeout=configuration.monitor_idle_time):
                 break
         process.terminate()
-    clean_up()
+    else:
+        remove_semaphore_file()
+
+def remove_semaphore_file():
+    """
+    Delete the semaphore file. It is not an error if the file does not
+    exist.
+    """
+    # keep compatibility with Python 3.7 for file deletion.
+    # From Python 3.8 on .unlink(missing_ok=True) will do the job.
+    if configuration.semaphore_file.exists():
+        configuration.semaphore_file.unlink()
 
 
 def clean_up():
@@ -56,9 +67,7 @@ def clean_up():
     This method may get called multiple times, but that doesn't
     hurt.
     """
-    # keep compatibility with Python 3.7 for file deletion:
-    if configuration.semaphore_file.exists():
-        configuration.semaphore_file.unlink()
+    remove_semaphore_file()
     # delete cronjobs on shutdown because on next startup
     # the callables and according crontabs may have changed
     interface.delete_cronjobs()
