@@ -3,6 +3,7 @@ anacron:
 
 simple background task handling with no dependencies.
 """
+import atexit
 
 from . import configuration
 from .decorators import (
@@ -17,6 +18,7 @@ __version__ = "0.2.dev"
 
 
 _engine = Engine()
+atexit.register(_engine.stop)
 _engine.start()
 
 

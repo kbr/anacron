@@ -5,12 +5,13 @@ worker class for handling cron and delegated tasks.
 """
 
 import importlib
+import os
+import sys
 import time
 
 from anacron.configuration import configuration
 from anacron.schedule import CronScheduler
 from anacron.sql_interface import interface
-from anacron.utils import register_shutdown_handler
 
 
 class Worker:
@@ -35,8 +36,6 @@ class Worker:
         Main event loop for the worker. Takes callables and processes
         them as long as callables are available. Otherwise keep idle.
         """
-        # register handler to terminate `run()`
-        register_shutdown_handler(self.terminate)
         while self.active:
             if not self.handle_tasks():
                 # nothing to do, check for results to delete:
@@ -110,6 +109,8 @@ class Worker:
 
 def start_worker():
     """subprocess entry-point"""
+    # insert cwd of hosting application to pythonpath
+    sys.path.insert(0, os.getcwd())
     worker = Worker()
     worker.run()
 

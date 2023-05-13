@@ -21,7 +21,7 @@ DB_FILE_NAME = "anacron.db"
 SEMAPHORE_FILE_NAME = "anacron.semaphore"
 CONFIGURATION_FILE_NAME = "anacron.conf"
 CONFIGURATION_SECTION = "anacron"
-MONITOR_IDLE_TIME = 1.0  # seconds
+MONITOR_IDLE_TIME = 2.0  # seconds
 WORKER_IDLE_TIME = 1.0  # seconds
 RESULT_TTL = 1800  # storage time (time to live) for results in seconds
 AUTOCONFIGURATION_TIMEOUT = 2  # seconds
@@ -150,6 +150,7 @@ class Configuration:
     def cwd(self):
         """
         Provides the current working directory.
+        This is the working directory of the anacron importing application.
         """
         return pathlib.Path.cwd()
 

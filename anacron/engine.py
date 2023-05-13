@@ -10,7 +10,6 @@ import threading
 
 from .configuration import configuration
 from .sql_interface import interface
-from .utils import register_shutdown_handler
 
 
 WORKER_MODULE_NAME = "worker.py"
@@ -97,7 +96,6 @@ class Engine:
             pass
         else:
             # start monitor thread
-            register_shutdown_handler(self.stop)
             self.monitor_thread = threading.Thread(
                 target=worker_monitor,
                 args=(self.exit_event, database_file)
@@ -112,10 +110,10 @@ class Engine:
         current stack frame, that could be None or a frame object. To
         shut down, both arguments are ignored.
         """
-        if self.monitor_thread.is_alive():
+        if self.monitor_thread and self.monitor_thread.is_alive():
             self.exit_event.set()
         clean_up()
 
 
-engine = Engine()
-engine.start()
+# engine = Engine()
+# engine.start()
