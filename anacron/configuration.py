@@ -22,7 +22,7 @@ SEMAPHORE_FILE_NAME = "anacron.semaphore"
 CONFIGURATION_FILE_NAME = "anacron.conf"
 CONFIGURATION_SECTION = "anacron"
 MONITOR_IDLE_TIME = 2.0  # seconds
-WORKER_IDLE_TIME = 1.0  # seconds
+WORKER_IDLE_TIME = 4.0  # seconds
 RESULT_TTL = 1800  # storage time (time to live) for results in seconds
 AUTOCONFIGURATION_TIMEOUT = 2  # seconds
 AUTOCONFIGURATION_IDLE_TIME = 0.1  # seconds
@@ -49,7 +49,7 @@ class Configuration:
         self.autoconfiguration_timeout = AUTOCONFIGURATION_TIMEOUT
         self.autoconfiguration_idle_time = AUTOCONFIGURATION_IDLE_TIME
         self.is_active = None
-        self._read_configuration()
+#         self._read_configuration()
 
     def _get_anacron_directory(self):
         """
