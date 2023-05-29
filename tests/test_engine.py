@@ -54,12 +54,18 @@ class TestEngine(unittest.TestCase):
         assert process.poll() is not None
 
     def test_start_allowed(self):
-        cc = configuration.configuration  # shortcut
+        # local shortcuts
+        ee = engine.engine
+        cc = configuration.configuration
+
+        ee._start_allowed = None  # reset in tests to ignore caching
         cc.is_active = False
-        assert engine.start_allowed() is False
+        assert ee.start_allowed is False
+        ee._start_allowed = None
         cc.is_active = True
         self._set_semaphore()
-        assert engine.start_allowed() is False
+        assert ee.start_allowed is False
+        ee._start_allowed = None
         self._unset_semaphore()
-        assert engine.start_allowed() is True
+        assert ee.start_allowed is True
 

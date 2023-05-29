@@ -128,6 +128,28 @@ class Configuration:
             # default is False
             self.is_active = False
 
+    def get_django_debug_setting(self):
+        """
+        Returns a boolean representing the django DEBUG setting.
+        Returns None in case django is installed but there is an error
+        reading the DEBUG setting.
+        Raise a NameError in case this method is called but django is
+        not installed.
+        """
+        start = time.monotonic()
+        while True:
+            if settings.configured:
+                try:
+                    value = settings.DEBUG
+                except AttributeError:
+                    value = None
+                break
+            if time.monotonic() - start > self.autoconfiguration_timeout:
+                # timeout reading the setting
+                value = None
+                break
+        return value
+
     @property
     def configuration_file(self):
         """
@@ -156,6 +178,14 @@ class Configuration:
         This is the working directory of the anacron importing application.
         """
         return pathlib.Path.cwd()
+
+    @property
+    def is_django_application(self):
+        """
+        Assume that if django is installed it is a django-application.
+        Provides a boolean.
+        """
+        return DJANGO_IS_INSTALLED
 
 
 configuration = Configuration()
