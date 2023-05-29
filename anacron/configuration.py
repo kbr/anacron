@@ -48,7 +48,7 @@ class Configuration:
         self.result_ttl = datetime.timedelta(minutes=RESULT_TTL)
         self.autoconfiguration_timeout = AUTOCONFIGURATION_TIMEOUT
         self.autoconfiguration_idle_time = AUTOCONFIGURATION_IDLE_TIME
-        self.is_active = None
+        self.is_active = True
 #         self._read_configuration()
 
     def _get_anacron_directory(self):
@@ -95,7 +95,10 @@ class Configuration:
                     if value is not None:
                         self.__dict__[name] = value
                 try:
-                    setattr(self, "is_active", values.getboolean("is_active"))
+                    value = values.getboolean("is_active")
+                    if value is not None:
+                        setattr(self, "is_active", value)
+#                     setattr(self, "is_active", values.getboolean("is_active"))
                 except ValueError:
                     pass
 

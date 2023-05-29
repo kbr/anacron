@@ -80,7 +80,7 @@ class TestConfiguration(unittest.TestCase):
         If is_active is given with a configparser true-value, it should
         be True.
         """
-        assert self.configuration.is_active is None  # default
+        assert self.configuration.is_active is True  # default
         content = """\
             [anacron]
             result_ttl = 3600
@@ -96,7 +96,7 @@ class TestConfiguration(unittest.TestCase):
         If is_active is given with a configparser false-value, it should
         be False.
         """
-        assert self.configuration.is_active is None  # default
+        assert self.configuration.is_active is True  # default
         content = """\
             [anacron]
             result_ttl = 3600
@@ -112,7 +112,7 @@ class TestConfiguration(unittest.TestCase):
         If is_active is given with an invalid value, it should
         be None.
         """
-        assert self.configuration.is_active is None  # default
+        assert self.configuration.is_active is True  # default
         content = """\
             [anacron]
             result_ttl = 3600
@@ -121,4 +121,4 @@ class TestConfiguration(unittest.TestCase):
         with open(self.configuration_file, "w") as fobj:
             fobj.write(content)
         self.configuration._read_configuration()
-        assert self.configuration.is_active is None
+        assert self.configuration.is_active is True
