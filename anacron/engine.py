@@ -73,6 +73,24 @@ def clean_up():
     interface.delete_cronjobs()
 
 
+def start_allowed():
+    """
+    Returns a boolean whether the Engine is allowed to start.
+    The Engine is not allowed to start if the configuration forbids this
+    or if another worker is already running and the semaphore file is
+    set.
+    """
+    result = False
+    if configuration.is_active:
+        try:
+            configuration.semaphore_file.touch(exist_ok=False)
+        except FileExistsError:
+            pass
+        else:
+            result = True
+    return result
+
+
 class Engine:
     """
     The Engine is the entry-point for anacron. On import an Entry
@@ -91,14 +109,7 @@ class Engine:
         Starts the monitor in case no other monitor is already running
         and the configuration indicates that anacron is active.
         """
-        if not configuration.is_active:
-            return
-        try:
-            configuration.semaphore_file.touch(exist_ok=False)
-        except FileExistsError:
-            # don't start the monitor if semaphore set
-            pass
-        else:
+        if start_allowed():
             # start monitor thread
             self.monitor_thread = threading.Thread(
                 target=worker_monitor,
