@@ -3,6 +3,7 @@ engine.py
 
 Implementation of the anacron engine and the worker monitor.
 """
+import atexit
 import pathlib
 import subprocess
 import sys
@@ -87,8 +88,11 @@ class Engine:
 
     def start(self, database_file=None):
         """
-        Starts the monitor in case no other monitor is already running.
+        Starts the monitor in case no other monitor is already running
+        and the configuration indicates that anacron is active.
         """
+        if not configuration.is_active:
+            return
         try:
             configuration.semaphore_file.touch(exist_ok=False)
         except FileExistsError:
@@ -101,8 +105,12 @@ class Engine:
                 args=(self.exit_event, database_file)
             )
             self.monitor_thread.start()
+            # register stop() to terminate monitor-thread
+            # and subprocess on shutdown
+            atexit.register(self.stop)
 
-    def stop(self, *args):  # pylint: disable=unused-argument
+
+    def stop(self, *args, **kwargs):  # pylint: disable=unused-argument
         """
         Shut down monitor thread and release semaphore file. `args`
         collect arguments provided because the method is a
@@ -115,5 +123,4 @@ class Engine:
         clean_up()
 
 
-# engine = Engine()
-# engine.start()
+engine = Engine()
