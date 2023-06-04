@@ -55,12 +55,16 @@ def start_worker_monitor(exit_event, database_file=None):
     """
     process = None
     while True:
-        if process is None or process.poll() is not None:
-            process = start_subprocess(database_file)
-        if exit_event.wait(timeout=configuration.monitor_idle_time):
+        try:
+            if process is None or process.poll() is not None:
+                process = start_subprocess(database_file)
+            if exit_event.wait(timeout=configuration.monitor_idle_time):
+                break
+        except KeyboardInterrupt:
+            # SIGINT: terminate
+            process.terminate()
+            remove_semaphore_file()
             break
-    process.terminate()
-    remove_semaphore_file()
 
 
 def remove_semaphore_file():
@@ -70,8 +74,10 @@ def remove_semaphore_file():
     """
     # keep compatibility with Python 3.7 for file deletion.
     # From Python 3.8 on .unlink(missing_ok=True) will do the job.
-    if configuration.semaphore_file.exists():
+    try:
         configuration.semaphore_file.unlink()
+    except FileNotFoundError:
+        pass
 
 
 def clean_up():
@@ -193,15 +199,15 @@ class Engine:
         and the configuration indicates that anacron is active.
         """
         if self.start_allowed:
+            # register stop() to terminate monitor-thread
+            # and subprocess on shutdown
+            atexit.register(self.stop)
             # start monitor thread
             self.monitor_thread = threading.Thread(
                 target=start_worker_monitor,
                 args=(self.exit_event, database_file)
             )
             self.monitor_thread.start()
-            # register stop() to terminate monitor-thread
-            # and subprocess on shutdown
-            atexit.register(self.stop)
 
 
     def stop(self, *args, **kwargs):  # pylint: disable=unused-argument
@@ -212,6 +218,7 @@ class Engine:
         current stack frame, that could be None or a frame object. To
         shut down, both arguments are ignored.
         """
+        print("atexit: stop() called.")
         if self.monitor_thread and self.monitor_thread.is_alive():
             self.exit_event.set()
         clean_up()

@@ -55,6 +55,24 @@ def cron(minutes=None, hours=None, dow=None, months=None, dom=None,
     return wrapper
 
 
+def delay(func):
+    """
+    Decorator for a delayed task
+    """
+    def wrapper(*args, **kwargs):
+        if configuration.is_active:
+            uid = uuid.uuid4().hex
+            data = {"args": args, "kwargs": kwargs, "uuid": uid}
+            interface.register_callable(func, **data)
+            interface.register_result(func, **data)
+            return uid
+        return func(*args, **kwargs)
+    return wrapper
+
+
+
+
+
 class delegate:  # pylint: disable=invalid-name
     """
     class based decorator for a delayed task.

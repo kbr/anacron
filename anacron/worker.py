@@ -36,11 +36,19 @@ class Worker:
         Main event loop for the worker. Takes callables and processes
         them as long as callables are available. Otherwise keep idle.
         """
-        while self.active:
+        def run_task_cycle():
             if not self.handle_tasks():
                 # nothing to do, check for results to delete:
                 interface.delete_outdated_results()
                 time.sleep(configuration.worker_idle_time)
+
+        while self.active:
+#             run_task_cycle
+            try:
+                run_task_cycle()
+            except KeyboardInterrupt:
+                # SIGINT: terminate worker:
+                break
 
     def handle_tasks(self):
         """
