@@ -6,6 +6,7 @@ worker class for handling cron and delegated tasks.
 
 import importlib
 import os
+import signal
 import sys
 import time
 
@@ -23,6 +24,8 @@ class Worker:
         self.active = True
         self.result = None
         self.error_message = None
+        signal.signal(signal.SIGINT, self.terminate)
+        signal.signal(signal.SIGTERM, self.terminate)
 
     def terminate(self, *args):  # pylint: disable=unused-argument
         """
@@ -36,19 +39,11 @@ class Worker:
         Main event loop for the worker. Takes callables and processes
         them as long as callables are available. Otherwise keep idle.
         """
-        def run_task_cycle():
+        while self.active:
             if not self.handle_tasks():
                 # nothing to do, check for results to delete:
                 interface.delete_outdated_results()
                 time.sleep(configuration.worker_idle_time)
-
-        while self.active:
-#             run_task_cycle
-            try:
-                run_task_cycle()
-            except KeyboardInterrupt:
-                # SIGINT: terminate worker:
-                break
 
     def handle_tasks(self):
         """

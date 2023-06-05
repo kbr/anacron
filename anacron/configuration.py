@@ -8,7 +8,6 @@ adapt them from web-frameworks (currently django).
 import configparser
 import datetime
 import pathlib
-import time
 
 try:
     from django.conf import settings
@@ -16,16 +15,6 @@ except ImportError:
     DJANGO_IS_INSTALLED = False
 else:
     DJANGO_IS_INSTALLED = True
-
-try:
-    # flask is not needed but the configuration should
-    # know whether it is installed
-    # pylint: disable=unused-import
-    from flask import Flask
-except ImportError:
-    FLASK_IS_INSTALLED = False
-else:
-    FLASK_IS_INSTALLED = True
 
 DB_FILE_NAME = "anacron.db"
 SEMAPHORE_FILE_NAME = "anacron.semaphore"
@@ -112,32 +101,6 @@ class Configuration:
                 except ValueError:
                     pass
 
-    def wait_for_autoconfiguration(self):
-        """
-        This method is designed to get called from a separate thread,
-        so, in case of django, it can wait until the the django-settings
-        are loaded without blocking the application. The method will
-        return, when the application is ready to support the
-        project-specific settings.
-        """
-        if DJANGO_IS_INSTALLED and self.is_active is None:
-            start = time.monotonic()
-            while True:
-                if settings.configured:
-                    try:
-                        self.is_active = not settings.DEBUG
-                    except AttributeError:
-                        # this is a django configuration error
-                        pass
-                    break
-                if time.monotonic() - start > self.autoconfiguration_timeout:
-                    # on timeout anacron will not start
-                    break
-                time.sleep(self.autoconfiguration_idle_time)
-        if self.is_active is None:
-            # default is False
-            self.is_active = False
-
     def get_django_debug_setting(self):
         """
         Returns a boolean representing the django DEBUG setting.
@@ -146,19 +109,7 @@ class Configuration:
         Raise a NameError in case this method is called but django is
         not installed.
         """
-        start = time.monotonic()
-        while True:
-            if settings.configured:
-                try:
-                    value = settings.DEBUG
-                except AttributeError:
-                    value = None
-                break
-            if time.monotonic() - start > self.autoconfiguration_timeout:
-                # timeout reading the setting
-                value = None
-                break
-        return value
+        return settings.DEBUG
 
     @property
     def configuration_file(self):

@@ -12,13 +12,23 @@ from .decorators import (
 from .engine import engine as _engine
 
 
-__all__ = ["start", "cron", "delay", "delegate"]
-__version__ = "0.3.dev"
+__all__ = ["start", "cron", "delay", "django_autostart"]
+__version__ = "0.4.dev"
 
 
-def start():
+def start(database_file=None):
     """
     Call this from the framework of choice to explicitly
-    activate anacron (not necessary for django).
+    activate anacron.
     """
-    _engine.start()
+    _engine.start(database_file=database_file)
+
+
+def django_autostart(database_file=None):
+    """
+    Start anacron on a django-application depending on the
+    debug-settings. If debug is True, anacron will not start.
+    """
+    debug = configuration.configuration.get_django_debug_setting()
+    if not debug:
+        start(database_file=database_file)
