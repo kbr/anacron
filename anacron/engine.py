@@ -3,8 +3,10 @@ engine.py
 
 Implementation of the anacron engine and the worker monitor.
 """
+
 import atexit
 import pathlib
+import signal
 import subprocess
 import sys
 import threading
@@ -55,16 +57,12 @@ def start_worker_monitor(exit_event, database_file=None):
     """
     process = None
     while True:
-        try:
-            if process is None or process.poll() is not None:
-                process = start_subprocess(database_file)
-            if exit_event.wait(timeout=configuration.monitor_idle_time):
-                break
-        except KeyboardInterrupt:
-            # SIGINT: terminate
-            process.terminate()
-            remove_semaphore_file()
+        if process is None or process.poll() is not None:
+            process = start_subprocess(database_file)
+        if exit_event.wait(timeout=configuration.monitor_idle_time):
             break
+    process.terminate()
+    remove_semaphore_file()
 
 
 def remove_semaphore_file():
@@ -199,16 +197,12 @@ class Engine:
         and the configuration indicates that anacron is active.
         """
         if self.start_allowed:
-            # register stop() to terminate monitor-thread
-            # and subprocess on shutdown
-            atexit.register(self.stop)
             # start monitor thread
             self.monitor_thread = threading.Thread(
                 target=start_worker_monitor,
                 args=(self.exit_event, database_file)
             )
             self.monitor_thread.start()
-
 
     def stop(self, *args, **kwargs):  # pylint: disable=unused-argument
         """
@@ -218,13 +212,17 @@ class Engine:
         current stack frame, that could be None or a frame object. To
         shut down, both arguments are ignored.
         """
-        print("atexit: stop() called.")
+        print("stop() called.")
         if self.monitor_thread and self.monitor_thread.is_alive():
             self.exit_event.set()
         clean_up()
 
 
 engine = Engine()
+# signal.signal(signal.SIGINT, engine.stop)
+# signal.signal(signal.SIGTERM, engine.stop)
+
 
 if configuration.is_django_application:
+    atexit.register(engine.stop)
     engine.django_autostart()
