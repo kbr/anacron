@@ -71,6 +71,10 @@ class Engine:
         self.monitor_thread = None
         self.monitor = None
         self._start_allowed = None
+        self.original_handlers = {
+            signalnum: signal.signal(signalnum, self._terminate)
+            for signalnum in (signal.SIGINT, signal.SIGTERM)
+        }
 
     @property
     def start_allowed(self):
@@ -115,7 +119,7 @@ class Engine:
             )
             self.monitor_thread.start()
 
-    def stop(self, *args, **kwargs):  # pylint: disable=unused-argument
+    def stop(self):
         """
         Shut down monitor thread and release semaphore file. `args`
         collect arguments provided because the method is a
@@ -128,30 +132,14 @@ class Engine:
             self.monitor_thread = None
             remove_semaphore_file()
 
-
-class Terminator:
-    """
-    Terminates anacron on shutdown. This works different depending on
-    the used framework.
-    """
-    # pylint: disable=too-few-public-methods
-    def __init__(self, _engine):
-        self.engine = _engine
-        self.original_handlers = {
-            signalnum: signal.signal(signalnum, self.terminate)
-            for signalnum in (signal.SIGINT, signal.SIGTERM)
-        }
-
-   # pylint: disable=unused-argument
-    def terminate(self, signalnum, stackframe=None):
+    def _terminate(self, signalnum, stackframe=None):
         """
         Terminate anacron by calling the engine.stop method. Afterward
         reraise the signal again for the original signal-handler.
         """
-        self.engine.stop()
+        self.stop()
         signal.signal(signalnum, self.original_handlers[signalnum])
         signal.raise_signal(signalnum)  # requires Python >= 3.8
 
 
 engine = Engine()
-terminator = Terminator(engine)
