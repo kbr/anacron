@@ -404,3 +404,6 @@ class SQLiteInterface:
 
 
 interface = SQLiteInterface(db_name=configuration.db_file)
+# on start delete cronjobs from the last run. They may have changed
+# an will reread after deletion here.
+interface.delete_cronjobs()
