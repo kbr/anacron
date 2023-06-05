@@ -17,6 +17,16 @@ except ImportError:
 else:
     DJANGO_IS_INSTALLED = True
 
+try:
+    # flask is not needed but the configuration should
+    # know whether it is installed
+    # pylint: disable=unused-import
+    from flask import Flask
+except ImportError:
+    FLASK_IS_INSTALLED = False
+else:
+    FLASK_IS_INSTALLED = True
+
 DB_FILE_NAME = "anacron.db"
 SEMAPHORE_FILE_NAME = "anacron.semaphore"
 CONFIGURATION_FILE_NAME = "anacron.conf"

@@ -218,11 +218,38 @@ class Engine:
         clean_up()
 
 
-engine = Engine()
-# signal.signal(signal.SIGINT, engine.stop)
-# signal.signal(signal.SIGTERM, engine.stop)
+class Terminator:
+    """
+    Terminates anacron on shutdown. This works different depending on
+    the used framework.
+    """
+    # pylint: disable=too-few-public-methods
+    def __init__(self, _engine):
+        if configuration.is_django_application:
+            # registering signals in django may not work, because it is
+            # not guaranteed that this code will run in the main thread
+            atexit.register(_engine.stop)
+            return
 
+        self.engine = _engine
+        self.original_handlers = {
+            signalnum: signal.signal(signalnum, self.terminate)
+            for signalnum in (signal.SIGINT, signal.SIGTERM)
+        }
+
+   # pylint: disable=unused-argument
+    def terminate(self, signalnum, stackframe=None):
+        """
+        Terminate anacron by calling the engine.stop method. Afterward
+        reraise the signal again for the original signal-handler.
+        """
+        self.engine.stop()
+        signal.signal(signalnum, self.original_handlers[signalnum])
+        signal.raise_signal(signalnum)  # requires Python >= 3.8
+
+
+engine = Engine()
+terminator = Terminator(engine)
 
 if configuration.is_django_application:
-    atexit.register(engine.stop)
     engine.django_autostart()
