@@ -50,12 +50,7 @@ def remove_semaphore_file():
     Delete the semaphore file. It is not an error if the file does not
     exist.
     """
-    # keep compatibility with Python 3.7 for file deletion.
-    # From Python 3.8 on .unlink(missing_ok=True) will do the job.
-    try:
-        configuration.semaphore_file.unlink()
-    except FileNotFoundError:
-        pass
+    configuration.semaphore_file.unlink(missing_ok=True)
 
 
 class Engine:
@@ -133,10 +128,13 @@ class Engine:
             remove_semaphore_file()
 
     def _terminate(self, signalnum, stackframe=None):
+
         """
         Terminate anacron by calling the engine.stop method. Afterward
         reraise the signal again for the original signal-handler.
         """
+        # stackframe may be given to the signal-handler, but is unused
+        # pylint: disable=unused-argument
         self.stop()
         signal.signal(signalnum, self.original_handlers[signalnum])
         signal.raise_signal(signalnum)  # requires Python >= 3.8

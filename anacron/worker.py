@@ -27,7 +27,8 @@ class Worker:
         signal.signal(signal.SIGINT, self.terminate)
         signal.signal(signal.SIGTERM, self.terminate)
         # prevent decorated function to register itself again
-        # when called as task:
+        # when called as task.
+        # (this is save because the worker runs in its own process)
         configuration.is_active = False
 
     def terminate(self, *args):  # pylint: disable=unused-argument
@@ -59,12 +60,12 @@ class Worker:
         tasks = interface.get_tasks_on_due()
         if tasks:
             for task in tasks:
-                print(f"worker: handle task {task.function_name}, rowid: {task.rowid}, uuid: {task.uuid}")
+                if self.active is False:
+                    # terminate as soon as possible
+                    return True
                 self.error_message = None
                 self.result = None
                 self.process_task(task)
-                print(f"result: {self.result}")
-                print(f"error: {self.error_message}")
                 self.postprocess_task(task)
             return True
         return False

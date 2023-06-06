@@ -45,6 +45,13 @@ class TestEngine(unittest.TestCase):
         if sf.exists():
             sf.unlink()  # nissing_ok parameter needs Python >= 3.8
 
+    def test_remove_semaphore_file(self):
+        self._set_semaphore()
+        sf = configuration.configuration.semaphore_file
+        self.assertTrue(sf.exists())
+        engine.remove_semaphore_file()
+        self.assertFalse(sf.exists())
+
     def test_start_subprocess(self):
         process = engine.start_subprocess()
         assert isinstance(process, subprocess.Popen) is True
