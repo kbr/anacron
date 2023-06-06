@@ -1,7 +1,7 @@
 Background task manager
 =======================
 
-Python background task manager without dependencies and no configuration.
+Python background task manager with no dependencies beside the standard library.
 
 **This project is in alpha-state**
 

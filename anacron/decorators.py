@@ -1,5 +1,7 @@
 """
 decorators.py
+
+For cron jobs and delayed tasks.
 """
 
 import uuid
@@ -68,62 +70,3 @@ def delay(func):
             return uid
         return func(*args, **kwargs)
     return wrapper
-
-
-
-
-
-# class delegate:  # pylint: disable=invalid-name
-#     """
-#     class based decorator for a delayed task.
-#     Can get called with an optional argument:
-#
-#         @delegate
-#         def do_work(arguments):
-#             ...
-#
-#     A call to `do_work()` will return None and the function itself will
-#     get handled with some delay in another process.
-#
-#     The decorator get called with an optional argument (in the example
-#     given as keyword-argument, but will also work with just `True`
-#     provided as first argument):
-#
-#         @delegate(provide_result=True)
-#         def do_work(arguments):
-#             ...
-#
-#     In this case a call to `do_work()` will return an id (a `uuid`) that
-#     can be used later to fetch the result.
-#
-#     """
-#     def __init__(self, provide_result=False):
-#         if callable(provide_result):
-#             self.func = provide_result
-#             self.provide_result = None
-#         else:
-#             self.func = None
-#             self.provide_result = provide_result
-#
-#     def __call__(self, *args, **kwargs):
-#         if self.func:
-#             return self.wrapper(*args, **kwargs)
-#         self.func = args[0]
-#         return self.wrapper
-#
-#     def wrapper(self, *args, **kwargs):
-#         """Wraps the decorated function
-#         """
-#         if not configuration.is_active:
-#             return self.func(*args, **kwargs)
-#         data = {"args": args, "kwargs": kwargs}
-#         if self.provide_result:
-#             uid = uuid.uuid4().hex
-#         else:
-#             uid = None
-#         data["uuid"] = uid
-#         interface.register_callable(self.func, **data)
-#         if uid:
-#             # result requested:
-#             interface.register_result(self.func, **data)
-#         return uid

@@ -23,14 +23,10 @@ CONFIGURATION_SECTION = "anacron"
 MONITOR_IDLE_TIME = 2.0  # seconds
 WORKER_IDLE_TIME = 4.0  # seconds
 RESULT_TTL = 1800  # storage time (time to live) for results in seconds
-AUTOCONFIGURATION_TIMEOUT = 2  # seconds
-AUTOCONFIGURATION_IDLE_TIME = 0.1  # seconds
 CONFIGURABLE_SETTING_NAMES = (
     "monitor_idle_time",
     "worker_idle_time",
     "result_ttl",
-    "autoconfiguration_timeout",
-    "autoconfiguration_idle_time",
 )
 
 
@@ -45,8 +41,6 @@ class Configuration:
         self.monitor_idle_time = MONITOR_IDLE_TIME
         self.worker_idle_time = WORKER_IDLE_TIME
         self.result_ttl = datetime.timedelta(minutes=RESULT_TTL)
-        self.autoconfiguration_timeout = AUTOCONFIGURATION_TIMEOUT
-        self.autoconfiguration_idle_time = AUTOCONFIGURATION_IDLE_TIME
         self.is_active = True
 #         self._read_configuration()
 
