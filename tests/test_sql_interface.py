@@ -335,70 +335,58 @@ class TestCronDecorator(unittest.TestCase):
         configuration.configuration.is_active = False
 
 
-def delegate_function():
+def delay_function():
     return 42
 
 
-class TestNewDelegateDecorator(unittest.TestCase):
+class TestDelayDecorator(unittest.TestCase):
 
     def setUp(self):
         self.orig_decorator_interface = decorators.interface
         self.orig_worker_interface = worker.interface
         worker.interface = decorators.interface =\
             sql_interface.SQLiteInterface(db_name=TEST_DB_NAME)
+        self._deactivate()
 
     def tearDown(self):
         pathlib.Path(decorators.interface.db_name).unlink()
         decorators.interface = self.orig_decorator_interface
         worker.interface = self.orig_worker_interface
+        self._deactivate()
+
+    @staticmethod
+    def _activate():
+        configuration.configuration.is_active = True
+
+    @staticmethod
+    def _deactivate():
+        configuration.configuration.is_active = False
 
     def test_inactive(self):
         # does not return the original function but calls
         # the original function indirect instead of registering
         # the task in the db.
-        wrapper = decorators.delegate(delegate_function)
+        wrapper = decorators.delay(delay_function)
         assert wrapper() == 42
-        entries = decorators.interface.get_tasks_by_signature(delegate_function)
+        entries = decorators.interface.get_tasks_by_signature(delay_function)
         assert len(entries) == 0
-        # call decorator with parameter
-        call = decorators.delegate(provide_result=False)
-        wrapper = call(delegate_function)
-        entries = decorators.interface.get_tasks_by_signature(delegate_function)
-        assert len(entries) == 0
-        assert wrapper() == 42
 
-    def test_active_no_argument(self):
-        configuration.configuration.is_active = True
-        wrapper = decorators.delegate(delegate_function)
-        assert wrapper() != 42
-        entries = decorators.interface.get_tasks_by_signature(delegate_function)
+    def test_active(self):
+        self._activate()
+        wrapper = decorators.delay(delay_function)
+        wrapper_return_value = wrapper()
+        assert wrapper_return_value != 42
+        assert isinstance(wrapper_return_value, str) is True  # return uuid as string
+        assert len(wrapper_return_value) == 32  # length of a uuid.hex string
+        entries = decorators.interface.get_tasks_by_signature(delay_function)
         assert len(entries) == 1
-        configuration.configuration.is_active = False
 
-    def test_active_with_argument(self):
-        configuration.configuration.is_active = True
-        call = decorators.delegate(provide_result=False)
-        wrapper = call(delegate_function)
-        assert wrapper() is None  # provide_result is False
-        entries = decorators.interface.get_tasks_by_signature(delegate_function)
-        assert len(entries) == 1
-        configuration.configuration.is_active = False
-
-    def test_active_with_argument_get_uuid(self):
-        configuration.configuration.is_active = True
-        call = decorators.delegate(provide_result=True)
-        wrapper = call(delegate_function)
-        assert isinstance(wrapper(), str) is True  # provide_result is True
-        entries = decorators.interface.get_tasks_by_signature(delegate_function)
-        assert len(entries) == 1
-        configuration.configuration.is_active = False
-
-    def test_active_with_argument_and_get_result(self):
+    def test_active_and_get_result(self):
         """
         Test story:
 
-        1. wrap a function with the delegate decorator and provide
-           arguments. This should return a uuid.
+        1. wrap a function with the delegate decorator.
+           This should return a uuid.
         2. Check for task entry in db.
         3. Then call `Worker.handle_tasks` what should return True.
         4. Then call `interface.get_result_by_uuid` which should return
@@ -406,13 +394,12 @@ class TestNewDelegateDecorator(unittest.TestCase):
 
         """
         # 1: wrap function and call the wrapper with arguments
-        configuration.configuration.is_active = True
-        call = decorators.delegate(provide_result=True)
-        wrapper = call(test_adder)
+        self._activate()
+        wrapper = decorators.delay(test_adder)
         uuid_ = wrapper(40, 2)
         assert uuid_ is not None
 
-        # 2: a single entry is now now in both tables:
+        # 2: a single entry is now in both tables:
         time.sleep(0.001)  # have some patience with the db.
         task_entries = decorators.interface.get_tasks_by_signature(test_adder)
         assert len(task_entries) == 1
@@ -421,7 +408,12 @@ class TestNewDelegateDecorator(unittest.TestCase):
         assert result.is_waiting is True
 
         # 3: let the worker handle the task:
-        worker_ = worker.Worker()  # instanciate but don't start the worker
+        # instanciate but don't start the worker
+        # this will set configuration.is_active to False, because the
+        # worker assumes to run in a separate process.
+        # This is important as otherwise calling the task will not execute
+        # the task but registering the task again by the wrapper.
+        worker_ = worker.Worker()
         # return True if at least one task has handled:
         return_value = worker_.handle_tasks()
         assert return_value is True
@@ -434,8 +426,6 @@ class TestNewDelegateDecorator(unittest.TestCase):
         result = decorators.interface.get_result_by_uuid(uuid_)
         assert result.is_ready is True
         assert result.result == 42  # 40 + 2
-        # shut down:
-        configuration.configuration.is_active = False
 
 
 class TestHybridNamespace(unittest.TestCase):

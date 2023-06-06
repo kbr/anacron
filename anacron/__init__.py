@@ -7,7 +7,6 @@ from . import configuration
 from .decorators import (
     cron,
     delay,
-    delegate,
 )
 from .engine import engine as _engine
 
