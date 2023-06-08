@@ -6,3 +6,5 @@ __pycache__/*
 anacron.db
 dist/
 build/
+__pycache__
+_todo.txt

@@ -7,6 +7,7 @@ testcode for sql-actions and for decorators
 import collections
 import datetime
 import pathlib
+import sqlite3
 import time
 import unittest
 import uuid
@@ -236,6 +237,23 @@ class TestSQLInterface(unittest.TestCase):
         remaining_entries = self.interface.count_results()
         assert entries - remaining_entries == 1
 
+    def test_count_rows(self):
+        # call _count_table_rows on an empty table:
+        rows = self.interface._count_table_rows(
+            table_name=sql_interface.DB_TABLE_NAME_TASK)
+        assert rows == 0
+        # create a row and count again:
+        self.interface.register_callable(test_callable)
+        rows = self.interface._count_table_rows(
+            table_name=sql_interface.DB_TABLE_NAME_TASK)
+        assert rows == 1
+        # check for exception in case of an unknown table:
+        self.assertRaises(
+            sqlite3.OperationalError,
+            self.interface._count_table_rows,
+            table_name="unknwon_table_name"
+        )
+
     def test_count_results(self):
         # register three results.
         # check whether there are three entries in the database
@@ -269,6 +287,8 @@ class TestSQLInterface(unittest.TestCase):
         assert entry.function_module == test_callable.__module__
         assert entry.function_name == test_callable.__name__
 
+    def test_settings_default(self):
+        pass
 
 
 

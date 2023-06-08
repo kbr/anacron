@@ -47,7 +47,7 @@ CMD_UPDATE_SCHEDULE = f"\
     UPDATE {DB_TABLE_NAME_TASK} SET schedule = ? WHERE rowid == ?"
 CMD_DELETE_CALLABLE = f"DELETE FROM {DB_TABLE_NAME_TASK} WHERE rowid == ?"
 CMD_DELETE_CRON_CALLABLES = f"DELETE FROM {DB_TABLE_NAME_TASK} WHERE crontab <> ''"
-CMD_COUNT_TASKS = f"SELECT COUNT(*) FROM {DB_TABLE_NAME_TASK}"
+CMD_COUNT_TABLE_ROWS = "SELECT COUNT(*) FROM {table_name}"
 
 DB_TABLE_NAME_RESULT = "result"
 CMD_CREATE_RESULT_TABLE = f"""
@@ -100,8 +100,26 @@ CMD_UPDATE_RESULT = f"""
 CMD_DELETE_OUTDATED_RESULTS = f"""\
     DELETE FROM {DB_TABLE_NAME_RESULT}
     WHERE status == {TASK_STATUS_READY} AND ttl <= ?"""
-CMD_COUNT_RESULTS = f"SELECT COUNT(*) FROM {DB_TABLE_NAME_RESULT}"
 
+
+DB_TABLE_NAME_SETTINGS = "settings"
+CMD_CREATE_SETTINGS_TABLE = f"""
+CREATE TABLE IF NOT EXISTS {DB_TABLE_NAME_SETTINGS}
+(
+    max_workers INTEGER,
+    running_workers INTEGER
+)
+"""
+
+MAX_WORKERS_DEFAULT = 1
+
+CMD_SETTINGS_STORE_DEFAULTS = f"""
+INSERT INTO {DB_TABLE_NAME_SETTINGS} VALUES
+(
+    :max_workers,
+    :running_workers
+)
+"""
 
 # sqlite3 default adapters and converters deprecated as of Python 3.12:
 
@@ -180,6 +198,7 @@ class SQLiteInterface:
         self.db_name = db_name
         self._execute(CMD_CREATE_TASK_TABLE)
         self._execute(CMD_CREATE_RESULT_TABLE)
+        self._execute(CMD_CREATE_SETTINGS_TABLE)
 
     def _execute(self, cmd, parameters=()):
         """run a command with parameters."""
@@ -190,19 +209,13 @@ class SQLiteInterface:
         with con:
             return con.execute(cmd, parameters)
 
-    def _count_table_entries(self, table_name):
+    def _count_table_rows(self, table_name):
         """
         Helper function to count the number of entries in the given
-        table. Returns a numeric value. Raises a ValueError in case the
-        table_name is unknown.
+        table. Returns a numeric value. In case of an unknown table_name
+        a sqlite3.OperationalError will get raised.
         """
-        if table_name == DB_TABLE_NAME_TASK:
-            cmd = CMD_COUNT_TASKS
-        elif table_name == DB_TABLE_NAME_RESULT:
-            cmd = CMD_COUNT_RESULTS
-        else:
-            message = f"unknown table: {table_name}"
-            raise ValueError(message)
+        cmd = CMD_COUNT_TABLE_ROWS.format(table_name=table_name)
         cursor = self._execute(cmd)
         number_of_rows = cursor.fetchone()[0]
         return number_of_rows
@@ -323,7 +336,7 @@ class SQLiteInterface:
         Returns the number of rows in the task-table, therefore
         providing the number of tasks stored in the database.
         """
-        return self._count_table_entries(DB_TABLE_NAME_TASK)
+        return self._count_table_rows(DB_TABLE_NAME_TASK)
 
 
     # -- result-methods ---
@@ -392,7 +405,7 @@ class SQLiteInterface:
         Returns the number of rows in the task-table, therefore
         providing the number of tasks stored in the database.
         """
-        return self._count_table_entries(DB_TABLE_NAME_RESULT)
+        return self._count_table_rows(DB_TABLE_NAME_RESULT)
 
     def delete_outdated_results(self):
         """
