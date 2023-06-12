@@ -287,8 +287,71 @@ class TestSQLInterface(unittest.TestCase):
         assert entry.function_module == test_callable.__module__
         assert entry.function_name == test_callable.__name__
 
-    def test_settings_default(self):
-        pass
+    def test_initialize_settings_table(self):
+        """
+        Combined test for
+            _initialize_settings_table()
+            get_settings()
+            set_settings()
+        """
+
+        def get_rows():
+            return self.interface._count_table_rows(
+                table_name=sql_interface.DB_TABLE_NAME_SETTINGS
+            )
+        # call to _initialize_settings_table() should add an entry:
+        self.interface._initialize_settings_table()
+        assert get_rows() == 1
+        settings = self.interface.get_settings()
+        assert settings.max_workers == sql_interface.MAX_WORKERS_DEFAULT
+        new_max_workers = sql_interface.MAX_WORKERS_DEFAULT + 1
+        settings.max_workers = new_max_workers
+        self.interface.set_settings(settings)
+        # value of max_workers should have changed
+        new_settings = self.interface.get_settings()
+        assert new_settings.max_workers == new_max_workers
+
+        # a second call should have no effect:
+        self.interface._initialize_settings_table()
+        assert get_rows() == 1
+
+        # and the former changed values are also unchanged:
+        the_settings = self.interface.get_settings()
+        assert the_settings.max_workers == new_max_workers
+
+    def test_increment_running_workers(self):
+        settings = self.interface.get_settings()
+        running_workers = settings.running_workers
+        self.interface.increment_running_workers()
+        settings = self.interface.get_settings()
+        assert running_workers == settings.running_workers - 1
+
+    def test_decrement_running_workers(self):
+        settings = self.interface.get_settings()
+        settings.running_workers = 1
+        self.interface.set_settings(settings)
+        self.interface.decrement_running_workers()
+        settings = self.interface.get_settings()
+        assert settings.running_workers == 0
+        # second decrement should not go below zero
+        self.interface.decrement_running_workers()
+        settings = self.interface.get_settings()
+        assert settings.running_workers == 0
+
+    def test_try_increment_running_workers(self):
+        # no workers allowed: -> False
+        settings = self.interface.get_settings()
+        settings.max_workers = 0
+        self.interface.set_settings(settings)
+        self.assertFalse(self.interface.try_increment_running_workers())
+        # default settings: -> True
+        settings = self.interface.get_settings()
+        settings.max_workers = 1
+        settings.running_workers = 0
+        self.interface.set_settings(settings)
+        self.assertTrue(self.interface.try_increment_running_workers())
+        # but an additional worker is not allowed:
+        self.assertFalse(self.interface.try_increment_running_workers())
 
 
 

@@ -11,6 +11,7 @@ import sys
 import threading
 
 from .configuration import configuration
+from .sql_interface import interface
 
 
 WORKER_MODULE_NAME = "worker.py"
@@ -40,17 +41,10 @@ def start_worker_monitor(exit_event, database_file=None):
             process = start_subprocess(database_file)
         if exit_event.wait(timeout=configuration.monitor_idle_time):
             break
-    # got exit event: terminate worker and clear semaphore
+    # got exit event: terminate worker
+    # running_worker decrement is triggered in the stop() method
+    # (which is the termination handler registered in the main thread)
     process.terminate()
-    remove_semaphore_file()
-
-
-def remove_semaphore_file():
-    """
-    Delete the semaphore file. It is not an error if the file does not
-    exist.
-    """
-    configuration.semaphore_file.unlink(missing_ok=True)
 
 
 class Engine:
@@ -61,33 +55,26 @@ class Engine:
     process. If the (auto-)configuration is not active, the method start
     will just return doing nothing.
     """
-    def __init__(self):
+    # pylint: disable=redefined-outer-name
+    def __init__(self, interface=interface):
+        self.interface = interface  # allow dependency injection for tests
         self.exit_event = threading.Event()
         self.monitor_thread = None
-        self.monitor = None
-        self._start_allowed = None
         self.original_handlers = {
             signalnum: signal.signal(signalnum, self._terminate)
             for signalnum in (signal.SIGINT, signal.SIGTERM)
         }
 
-    @property
-    def start_allowed(self):
+    def is_start_allowed(self):
         """
-        boolean: indicates whether the engine is allowed to start a
-        monitor and a worker.
+        Return True if anacron is active and more running worker are
+        allowed. Return False if a worker is already running, no more
+        worker allowed or anacron is not active.
         """
-        if self._start_allowed is None:
-            result = False
-            if configuration.is_active:
-                try:
-                    configuration.semaphore_file.touch(exist_ok=False)
-                except FileExistsError:
-                    pass
-                else:
-                    result = True
-            self._start_allowed = result
-        return self._start_allowed
+        if configuration.is_active and not self.monitor_thread:
+            return self.interface.try_increment_running_workers()
+        return False
+
 
     def django_autostart(self, database_file=None):
         """
@@ -106,7 +93,7 @@ class Engine:
         Starts the monitor in case no other monitor is already running
         and the configuration indicates that anacron is active.
         """
-        if self.start_allowed:
+        if self.is_start_allowed():
             # start monitor thread
             self.monitor_thread = threading.Thread(
                 target=start_worker_monitor,
@@ -125,7 +112,7 @@ class Engine:
         if self.monitor_thread:  # and self.monitor_thread.is_alive():
             self.exit_event.set()
             self.monitor_thread = None
-            remove_semaphore_file()
+            self.interface.decrement_running_workers()
 
     def _terminate(self, signalnum, stackframe=None):
 

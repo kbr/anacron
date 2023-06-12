@@ -113,13 +113,22 @@ CREATE TABLE IF NOT EXISTS {DB_TABLE_NAME_SETTINGS}
 
 MAX_WORKERS_DEFAULT = 1
 
-CMD_SETTINGS_STORE_DEFAULTS = f"""
+CMD_SETTINGS_STORE_VALUES = f"""
 INSERT INTO {DB_TABLE_NAME_SETTINGS} VALUES
 (
     :max_workers,
     :running_workers
 )
 """
+SETTINGS_COLUMN_SEQUENCE = "rowid,max_workers,running_workers"
+CMD_SETTINGS_GET_SETTINGS = f"""
+    SELECT {SETTINGS_COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_SETTINGS}"""
+CMD_SETTINGS_UPDATE = f"""
+    UPDATE {DB_TABLE_NAME_SETTINGS} SET
+        max_workers = ?,
+        running_workers = ?
+    WHERE rowid == ?"""
+
 
 # sqlite3 default adapters and converters deprecated as of Python 3.12:
 
@@ -143,6 +152,8 @@ sqlite3.register_adapter(datetime.datetime, datetime_adapter)
 sqlite3.register_converter("datetime", datetime_converter)
 
 
+# pylint does not like instances with dynamic attributes:
+# pylint: disable=no-member
 class HybridNamespace(types.SimpleNamespace):
     """
     A namespace-object with dictionary-like attribute access.
@@ -160,6 +171,17 @@ class HybridNamespace(types.SimpleNamespace):
 
     def __setitem__(self, name, value):
         self.__dict__[name] = value
+
+    def __len__(self):
+        return len(self.__dict__)
+
+    def __repr__(self):
+        names = self.__dict__.keys()
+        max_len = len(max(names))
+        template = f"{{:<{max_len}}}: {{}}"
+        return "\n" + "\n".join(
+            template.format(k, v) for k, v in self.__dict__.items()
+        )
 
 
 class TaskResult(HybridNamespace):
@@ -196,18 +218,31 @@ class SQLiteInterface:
 
     def __init__(self, db_name=":memory:"):
         self.db_name = db_name
-        self._execute(CMD_CREATE_TASK_TABLE)
-        self._execute(CMD_CREATE_RESULT_TABLE)
-        self._execute(CMD_CREATE_SETTINGS_TABLE)
+        self._create_tables()
+        self._initialize_settings_table()
 
     def _execute(self, cmd, parameters=()):
-        """run a command with parameters."""
+        """
+        Run a command with parameters. Parameters can be a sequence of
+        values to get used in an ordered way or a dictionary with
+        key-value pairs, where the key are the value-names used in the
+        db (i.e. the column names).
+        """
         con = sqlite3.connect(
             self.db_name,
             detect_types=sqlite3.PARSE_DECLTYPES
         )
         with con:
             return con.execute(cmd, parameters)
+
+    def _create_tables(self):
+        """
+        Create all used tables in case of a new db and missing tables.
+        """
+        self._execute(CMD_CREATE_TASK_TABLE)
+        self._execute(CMD_CREATE_RESULT_TABLE)
+        self._execute(CMD_CREATE_SETTINGS_TABLE)
+
 
     def _count_table_rows(self, table_name):
         """
@@ -219,6 +254,16 @@ class SQLiteInterface:
         cursor = self._execute(cmd)
         number_of_rows = cursor.fetchone()[0]
         return number_of_rows
+
+    def _initialize_settings_table(self):
+        """
+        Check for an existing settings row in the settings-table.
+        If there is no row create an entry with the default values.
+        """
+        rows = self._count_table_rows(DB_TABLE_NAME_SETTINGS)
+        if not rows:
+            data = {"max_workers": 1, "running_workers": 0}
+            self._execute(CMD_SETTINGS_STORE_VALUES, data)
 
 
     # -- task-methods ---
@@ -414,6 +459,60 @@ class SQLiteInterface:
         """
         now = datetime.datetime.now()
         self._execute(CMD_DELETE_OUTDATED_RESULTS, (now,))
+
+    # -- setting-methods ---
+
+    def get_settings(self):
+        """
+        Returns a HybridNamespace instance with the settings.
+        """
+        cursor = self._execute(CMD_SETTINGS_GET_SETTINGS)
+        row = cursor.fetchone()  # there is only one row
+        col_names = SETTINGS_COLUMN_SEQUENCE.split(",")
+        data = dict(zip(col_names, row))
+        return HybridNamespace(data)
+
+    def set_settings(self, settings):
+        """
+        Takes a HybridNamespace instance as settings
+        argument (like the one returned from get_settings) and updates
+        the setting values in the database.
+        """
+        data = (
+            settings.max_workers,
+            settings.running_workers,
+            settings.rowid
+        )
+        self._execute(CMD_SETTINGS_UPDATE, data)
+
+    def increment_running_workers(self):
+        """
+        Increment the running_worker setting by 1.
+        """
+        settings = self.get_settings()
+        settings.running_workers += 1
+        self.set_settings(settings)
+
+    def decrement_running_workers(self):
+        """
+        Decrement the running_worker setting by 1.
+        But don't allow a value below zero.
+        """
+        settings = self.get_settings()
+        if settings.running_workers > 0:
+            settings.running_workers -= 1
+            self.set_settings(settings)
+
+    def try_increment_running_workers(self):
+        """
+        Increment the running_worker with a test whether it is allowed
+        or not. Returns True on success else False.
+        """
+        settings = self.get_settings()
+        if settings.running_workers < settings.max_workers:
+            self.increment_running_workers()
+            return True
+        return False
 
 
 interface = SQLiteInterface(db_name=configuration.db_file)

@@ -28,29 +28,13 @@ class TestEngine(unittest.TestCase):
     def setUp(self):
         self.interface = sql_interface.SQLiteInterface(db_name=TEST_DB_NAME)
         self._configuration_is_active = configuration.configuration.is_active
+        self.engine = engine.Engine(interface=self.interface)
+        self.cc = configuration.configuration
 
     def tearDown(self):
         # clean up if tests don't run through
-        self._unset_semaphore()
-        pathlib.Path(self.interface.db_name).unlink()
         configuration.configuration.is_active = self._configuration_is_active
-
-    @staticmethod
-    def _set_semaphore():
-        configuration.configuration.semaphore_file.touch(exist_ok=True)
-
-    @staticmethod
-    def _unset_semaphore():
-        sf = configuration.configuration.semaphore_file
-        if sf.exists():
-            sf.unlink()  # nissing_ok parameter needs Python >= 3.8
-
-    def test_remove_semaphore_file(self):
-        self._set_semaphore()
-        sf = configuration.configuration.semaphore_file
-        self.assertTrue(sf.exists())
-        engine.remove_semaphore_file()
-        self.assertFalse(sf.exists())
+        pathlib.Path(self.interface.db_name).unlink()
 
     def test_start_subprocess(self):
         process = engine.start_subprocess()
@@ -60,19 +44,16 @@ class TestEngine(unittest.TestCase):
         time.sleep(0.02)  # give process some time to terminate
         assert process.poll() is not None
 
-    def test_start_allowed(self):
-        # local shortcuts
-        ee = engine.engine
-        cc = configuration.configuration
+    def test_is_start_allowed(self):
+        # anacron not active -> no start
+        self.cc.is_active = False
+        self.assertFalse(self.engine.is_start_allowed())
+        # anacron active and already a monitor_thread -> no start
+        self.engine.monitor_thread = "some reference"
+        self.cc.is_active = True
+        self.assertFalse(self.engine.is_start_allowed())
+        # anacron active and not monitor_thread -> start allowed
+        self.engine.monitor_thread = None
+        self.assertTrue(self.engine.is_start_allowed())
 
-        ee._start_allowed = None  # reset in tests to ignore caching
-        cc.is_active = False
-        assert ee.start_allowed is False
-        ee._start_allowed = None
-        cc.is_active = True
-        self._set_semaphore()
-        assert ee.start_allowed is False
-        ee._start_allowed = None
-        self._unset_semaphore()
-        assert ee.start_allowed is True
 
