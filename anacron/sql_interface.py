@@ -176,12 +176,18 @@ class HybridNamespace(types.SimpleNamespace):
         return len(self.__dict__)
 
     def __repr__(self):
-        names = self.__dict__.keys()
+        names = list(self.__dict__.keys())
         max_len = len(max(names))
         template = f"{{:<{max_len}}}: {{}}"
         return "\n" + "\n".join(
             template.format(k, v) for k, v in self.__dict__.items()
         )
+
+    def __str__(self):
+        # same as __repr__ but without the rowid
+        lines = repr(self).split("\n")
+        lines = [line for line in lines if not line.startswith("rowid")]
+        return "\n".join(lines)
 
 
 class TaskResult(HybridNamespace):
@@ -218,6 +224,13 @@ class SQLiteInterface:
 
     def __init__(self, db_name=":memory:"):
         self.db_name = db_name
+        self._init_database()
+
+    def _init_database(self):
+        """
+        Creates a new database in case that an older one is not existing
+        and in case of missing settings set the settings-default values.
+        """
         self._create_tables()
         self._initialize_settings_table()
 
@@ -464,7 +477,10 @@ class SQLiteInterface:
 
     def get_settings(self):
         """
-        Returns a HybridNamespace instance with the settings.
+        Returns a HybridNamespace instance with the settings as attributes:
+        - max_workers
+        - running_workers
+        - rowid (not a setting but included)
         """
         cursor = self._execute(CMD_SETTINGS_GET_SETTINGS)
         row = cursor.fetchone()  # there is only one row
