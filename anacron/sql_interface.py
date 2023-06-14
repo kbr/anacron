@@ -43,6 +43,8 @@ CMD_GET_TASKS_BY_NAME = f"""\
     WHERE function_module == ? AND function_name == ?"""
 CMD_GET_TASKS_ON_DUE = f"""\
     SELECT {TASK_COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_TASK} WHERE schedule <= ?"""
+CMD_GET_TASKS = f"""\
+    SELECT {TASK_COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_TASK}"""
 CMD_UPDATE_SCHEDULE = f"\
     UPDATE {DB_TABLE_NAME_TASK} SET schedule = ? WHERE rowid == ?"
 CMD_DELETE_TASK = f"DELETE FROM {DB_TABLE_NAME_TASK} WHERE rowid == ?"
@@ -85,6 +87,7 @@ INSERT INTO {DB_TABLE_NAME_RESULT} VALUES
 RESULT_COLUMN_SEQUENCE =\
     "rowid,uuid,status,function_module,function_name,"\
     "function_arguments,function_result,error_message, ttl"
+CMD_GET_RESULTS = f"SELECT {RESULT_COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_RESULT}"
 CMD_GET_RESULT_BY_UUID = f"""\
     SELECT {RESULT_COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_RESULT}
     WHERE uuid == ?"""
@@ -156,7 +159,7 @@ sqlite3.register_converter("datetime", datetime_converter)
 # pylint: disable=no-member
 class HybridNamespace(types.SimpleNamespace):
     """
-    A namespace-object with dictionary-like attribute access.
+    A namespace-object with additional dictionary-like attribute access.
     """
     def __init__(self, data=None):
         """
@@ -209,6 +212,19 @@ class TaskResult(HybridNamespace):
     def has_error(self):
         """indicates error_message is set."""
         return self.status == TASK_STATUS_ERROR
+
+    @classmethod
+    def from_data_tuple(cls, row_data):
+        """
+        Returns a new TaskResult-Instance initialized with a tuple
+        representing the data from result-table row.
+        """
+        column_names = RESULT_COLUMN_SEQUENCE.split(",")
+        data = dict(zip(column_names, row_data))
+        instance = cls(data)
+        instance.function_result = pickle.loads(instance.function_result)
+        instance.function_arguments = pickle.loads(instance.function_arguments)
+        return instance
 
 
 class SQLiteInterface:
@@ -341,11 +357,17 @@ class SQLiteInterface:
         }
         self._execute(CMD_STORE_TASK, data)
 
+    def get_tasks(self):
+        """
+        Generic method to return all tasks as a list of HybridNamespace
+        instances.
+        """
+        cursor = self._execute(CMD_GET_TASKS)
+        return self._fetch_all_callable_entries(cursor)
+
     def get_tasks_on_due(self, schedule=None):
         """
-        Returns a list of all callables (tasks) that according to their
-        schedules are on due. Callables are represented by a dictionary
-        as returned from `_fetch_all_callable_entries()`
+        Returns tasks on due as a list of HybridNamespace instances.
         """
         if not schedule:
             schedule = datetime.datetime.now()
@@ -354,9 +376,8 @@ class SQLiteInterface:
 
     def get_tasks_by_signature(self, func):
         """
-        Return a list of all callables matching the function-signature.
-        Callables are represented by a dictionary as returned from
-        `_fetch_all_callable_entries()`
+        Return all tasks matching the function-signature as a list of
+        HybridNamespace instances.
         """
         parameters = func.__module__, func.__name__
         cursor = self._execute(CMD_GET_TASKS_BY_NAME, parameters)
@@ -425,6 +446,12 @@ class SQLiteInterface:
         }
         self._execute(CMD_STORE_RESULT, data)
 
+    def get_results(self):
+        """Generic method to return all results"""
+        cursor = self._execute(CMD_GET_RESULTS)
+        rows = cursor.fetchall()
+        return [TaskResult.from_data_tuple(row) for row in rows]
+
     def get_result_by_uuid(self, uuid):
         """
         Return a dataset (as TaskResult) or None.
@@ -432,11 +459,7 @@ class SQLiteInterface:
         cursor = self._execute(CMD_GET_RESULT_BY_UUID, (uuid,))
         row = cursor.fetchone()  # tuple of data or None
         if row:
-            # pylint: disable=attribute-defined-outside-init
-            result = TaskResult(
-                dict(zip(RESULT_COLUMN_SEQUENCE.split(","), row)))
-            result.function_result = pickle.loads(result.function_result)
-            result.function_arguments = pickle.loads(result.function_arguments)
+            result = TaskResult.from_data_tuple(row)
         else:
             result = None
         return result

@@ -19,7 +19,7 @@ PGM_DESCRIPTION = """
 """
 
 
-def format_item_list(data, separator="\n", divider=":", column_width=None):
+def _format_item_list(data, separator="\n", divider=":", column_width=None):
     """
     Helperfunction: takes a string representing a list of data-pairs
     separated by a given separator, with the data in the data-pair
@@ -43,23 +43,51 @@ def format_item_list(data, separator="\n", divider=":", column_width=None):
 
 
 def report_info():
-    """Report the settings values."""
+    """Report the settings and statistics about tasks and results."""
     settings = interface.get_settings()
-    settings = format_item_list(str(settings))
-    output = f"\nSettings\n{settings}\n"
+    task_num = interface.count_tasks()
+    result_num = interface.count_results()
+    report = f"{settings}\ntasks:{task_num}\nresults:{result_num}"
+    formated_report = _format_item_list(report)
+    output = f"\nSettings\n{formated_report}\n"
     print(output)
+
+
+def _report_tasks(tasks, task_type="tasks"):
+    """
+    Helperfunction: takes a list of Hybridnamespace intstances and print
+    them nicely formated to stdout.
+    """
+    print(f"\n{task_type} found: {len(tasks)}")
+    divider = "-" * 50
+    for task in tasks:
+        task = _format_item_list(str(task))
+        print(f"{divider}\n{task}")
+    print(divider)
+    print()
+
+
+def report_tasks():
+    """Report all stored tasks."""
+    _report_tasks(interface.get_tasks())
 
 
 def report_tasks_on_due():
     """Report all tasks waiting for execution and are on due."""
-    tasks = interface.get_tasks_on_due()
-    print(f"\ntasks found: {len(tasks)}")
-    divider = "-" * 50
-    for task in tasks:
-        task = format_item_list(str(task))
-        print(f"{divider}\n{task}")
-    print(divider)
-    print()
+    _report_tasks(interface.get_tasks_on_due())
+
+
+def report_cron_tasks():
+    """Report all task which are cron-jobs."""
+    tasks = interface.get_tasks()
+    cron_tasks = [task for task in tasks if task.crontab]
+    _report_tasks(cron_tasks)
+
+
+def report_results():
+    """Report all available results."""
+    results = interface.get_results()
+    _report_tasks(results, task_type="results")
 
 
 def reset_defaults():
@@ -129,10 +157,28 @@ def get_command_line_arguments():
         help="set number of maximum worker processes."
     )
     parser.add_argument(
+        "-t", "--get-tasks",
+        dest="get_tasks",
+        action="store_true",
+        help="list all tasks waiting for execution."
+    )
+    parser.add_argument(
         "-d", "--get-tasks-on-due",
         dest="get_tasks_on_due",
         action="store_true",
         help="lists all tasks waiting for execution and are on due."
+    )
+    parser.add_argument(
+        "-c", "--get-cron-tasks",
+        dest="get_cron_tasks",
+        action="store_true",
+        help="list all task which are cronjobs."
+    )
+    parser.add_argument(
+        "-r", "--get_results",
+        dest="get_results",
+        action="store_true",
+        help="list all avialable results."
     )
     return parser.parse_args()
 
@@ -147,8 +193,14 @@ def main(args=None):
         reset_defaults()
     elif args.max_workers:
         set_max_workers(args.max_workers)
+    elif args.get_tasks:
+        report_tasks()
     elif args.get_tasks_on_due:
         report_tasks_on_due()
+    elif args.get_cron_tasks:
+        report_cron_tasks()
+    elif args.get_results:
+        report_results()
     elif args.delete_database:
         delete_database()
 

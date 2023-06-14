@@ -69,6 +69,16 @@ class TestSQLInterface(unittest.TestCase):
         assert obj["args"] == args
         assert obj["kwargs"] == kwargs
 
+    def test_get_tasks(self):
+        # test the generic function to select all tasks:
+        schedule = datetime.datetime.now() + datetime.timedelta(seconds=10)
+        self.interface.register_callable(test_adder, schedule=schedule)
+        self.interface.register_callable(test_callable)
+        self.interface.register_callable(test_multiply, crontab="* * * * *")
+        # should return everything:
+        entries = self.interface.get_tasks()
+        assert len(entries) == 3
+
     def test_schedules_get_one_of_two(self):
         # register two callables, one with a schedule in the future
         schedule = datetime.datetime.now() + datetime.timedelta(seconds=10)
