@@ -176,12 +176,7 @@ class HybridNamespace(types.SimpleNamespace):
         return len(self.__dict__)
 
     def __repr__(self):
-        names = list(self.__dict__.keys())
-        max_len = len(max(names))
-        template = f"{{:<{max_len}}}: {{}}"
-        return "\n" + "\n".join(
-            template.format(k, v) for k, v in self.__dict__.items()
-        )
+        return "\n".join(f"{k}:{v}" for k, v in self.__dict__.items())
 
     def __str__(self):
         # same as __repr__ but without the rowid
@@ -214,7 +209,6 @@ class TaskResult(HybridNamespace):
     def has_error(self):
         """indicates error_message is set."""
         return self.status == TASK_STATUS_ERROR
-
 
 
 class SQLiteInterface:
@@ -298,8 +292,8 @@ class SQLiteInterface:
                 "kwargs": dict(of original datatypes),
             }
 
-        Returns a list of dictionaries or an empty list if a selection
-        does not match any row.
+        Returns a list of HybridNamespace instances or an empty list if
+        a selection does not match any row.
         """
         def process(row):
             """
