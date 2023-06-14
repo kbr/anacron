@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS {DB_TABLE_NAME_TASK}
     function_arguments BLOB
 )
 """
-CMD_STORE_CALLABLE = f"""
+CMD_STORE_TASK = f"""
 INSERT INTO {DB_TABLE_NAME_TASK} VALUES
 (
     :uuid,
@@ -38,15 +38,15 @@ INSERT INTO {DB_TABLE_NAME_TASK} VALUES
 TASK_COLUMN_SEQUENCE =\
     "rowid,uuid,schedule,crontab,"\
     "function_module,function_name,function_arguments"
-CMD_GET_CALLABLES_BY_NAME = f"""\
+CMD_GET_TASKS_BY_NAME = f"""\
     SELECT {TASK_COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_TASK}
     WHERE function_module == ? AND function_name == ?"""
-CMD_GET_CALLABLES_ON_DUE = f"""\
+CMD_GET_TASKS_ON_DUE = f"""\
     SELECT {TASK_COLUMN_SEQUENCE} FROM {DB_TABLE_NAME_TASK} WHERE schedule <= ?"""
 CMD_UPDATE_SCHEDULE = f"\
     UPDATE {DB_TABLE_NAME_TASK} SET schedule = ? WHERE rowid == ?"
-CMD_DELETE_CALLABLE = f"DELETE FROM {DB_TABLE_NAME_TASK} WHERE rowid == ?"
-CMD_DELETE_CRON_CALLABLES = f"DELETE FROM {DB_TABLE_NAME_TASK} WHERE crontab <> ''"
+CMD_DELETE_TASK = f"DELETE FROM {DB_TABLE_NAME_TASK} WHERE rowid == ?"
+CMD_DELETE_CRON_TASKS = f"DELETE FROM {DB_TABLE_NAME_TASK} WHERE crontab <> ''"
 CMD_COUNT_TABLE_ROWS = "SELECT COUNT(*) FROM {table_name}"
 
 DB_TABLE_NAME_RESULT = "result"
@@ -339,7 +339,7 @@ class SQLiteInterface:
             "function_name": func.__name__,
             "function_arguments": arguments,
         }
-        self._execute(CMD_STORE_CALLABLE, data)
+        self._execute(CMD_STORE_TASK, data)
 
     def get_tasks_on_due(self, schedule=None):
         """
@@ -349,7 +349,7 @@ class SQLiteInterface:
         """
         if not schedule:
             schedule = datetime.datetime.now()
-        cursor = self._execute(CMD_GET_CALLABLES_ON_DUE, [schedule])
+        cursor = self._execute(CMD_GET_TASKS_ON_DUE, [schedule])
         return self._fetch_all_callable_entries(cursor)
 
     def get_tasks_by_signature(self, func):
@@ -359,7 +359,7 @@ class SQLiteInterface:
         `_fetch_all_callable_entries()`
         """
         parameters = func.__module__, func.__name__
-        cursor = self._execute(CMD_GET_CALLABLES_BY_NAME, parameters)
+        cursor = self._execute(CMD_GET_TASKS_BY_NAME, parameters)
         return self._fetch_all_callable_entries(cursor)
 
     def delete_callable(self, entry):
@@ -368,13 +368,13 @@ class SQLiteInterface:
         dictionary as returned from `get_tasks_on_due()`. The row to delete
         gets identified by the `rowid`.
         """
-        self._execute(CMD_DELETE_CALLABLE, [entry["rowid"]])
+        self._execute(CMD_DELETE_TASK, [entry["rowid"]])
 
     def delete_cronjobs(self):
         """
         Delete all cronjobs from the task-table.
         """
-        self._execute(CMD_DELETE_CRON_CALLABLES)
+        self._execute(CMD_DELETE_CRON_TASKS)
 
     def update_schedule(self, rowid, schedule):
         """
