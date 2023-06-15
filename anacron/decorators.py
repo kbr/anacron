@@ -16,8 +16,12 @@ DEFAULT_CRONTAB = "* * * * *"
 
 
 # pylint: disable=too-many-arguments
-def cron(minutes=None, hours=None, dow=None, months=None, dom=None,
-         crontab=None):
+def cron(crontab=None,
+         minutes=None,
+         hours=None,
+         dow=None,
+         months=None,
+         dom=None):
     """
     Decorator function for a cronjob.
 
@@ -44,13 +48,6 @@ def cron(minutes=None, hours=None, dow=None, months=None, dom=None,
             crontab=crontab
         )
         schedule = scheduler.get_next_schedule()
-        for entry in interface.get_tasks_by_signature(func):
-            # there should be just a single entry.
-            # however iterate over all entries and
-            # test for a non-empty crontab-string.
-            if entry["crontab"]:
-                # delete existing cronjob(s) of the same callable
-                interface.delete_callable(entry)
         interface.register_callable(func, schedule=schedule, crontab=crontab)
         return func
 
