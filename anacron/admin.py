@@ -116,9 +116,9 @@ def delete_database():
     answer = input("Sure to delete the current database? [y/n]: ")
     if answer.lower() == 'y':
         interface.db_name.unlink()
-        # this could be all, because at next time anacron gets imported
+        # this could be all, because at the next anacron import
         # a new database will get created.
-        # However, we do this here and now:
+        # However, create a new database here and now:
         # pylint: disable=protected-access
         interface._init_database()
     else:
